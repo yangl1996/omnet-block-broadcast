@@ -1,4 +1,4 @@
-simple Txc1
+simple FullNode
 {
     gates:
         input in;
@@ -12,8 +12,8 @@ simple Txc1
 network Tictoc1
 {
     submodules:
-        tic: Txc1;
-        toc: Txc1;
+        tic: FullNode;
+        toc: FullNode;
     connections:
         tic.out --> {  delay = 100ms; } --> toc.in;
         tic.in <-- {  delay = 100ms; } <-- toc.out;

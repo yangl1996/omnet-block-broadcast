@@ -3,29 +3,20 @@
 
 using namespace omnetpp;
 
-/**
- * Derive the Txc1 class from cSimpleModule. In the Tictoc1 network,
- * both the `tic' and `toc' modules are Txc1 objects, created by OMNeT++
- * at the beginning of the simulation.
- */
-class Txc1 : public cSimpleModule
+// FullNode is a full node in a blockchain network.
+class FullNode : public cSimpleModule
 {
   protected:
-    // The following redefined virtual function holds the algorithm.
     virtual void initialize() override;
     virtual void handleMessage(cMessage *msg) override;
 };
 
-// The module class needs to be registered with OMNeT++
-Define_Module(Txc1);
+// Register the module with omnet
+Define_Module(FullNode);
 
-void Txc1::initialize()
+void FullNode::initialize()
 {
-    // Initialize is called at the beginning of the simulation.
-    // To bootstrap the tic-toc-tic-toc process, one of the modules needs
-    // to send the first message. Let this be `tic'.
-   
-    EV << "sending\n";
+    EV_INFO << "sending\n";
 
     // Am I Tic or Toc?
     if (strcmp("tic", getName()) == 0) {
@@ -36,7 +27,7 @@ void Txc1::initialize()
     }
 }
 
-void Txc1::handleMessage(cMessage *msg)
+void FullNode::handleMessage(cMessage *msg)
 {
     // The handleMessage() method is called whenever a message arrives
     // at the module. Here, we just send it to the other module, through
