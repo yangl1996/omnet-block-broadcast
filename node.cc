@@ -37,6 +37,7 @@ FullNode::~FullNode()
 
 void FullNode::initialize()
 {
+	WATCH(bestLevel);
 	// schedule the next block to be mined
 	nextBlock = new cMessage("mined");
 	simtime_t timeToNextBlock = exponential(par("mineIntv").doubleValueInUnit("s"));	// PoW on node mines one block every 40 seconds
@@ -49,7 +50,6 @@ void FullNode::handleMessage(cMessage *msg)
 		NewBlock *newBlock = new NewBlock("block");
 		newBlock->setHeight(bestLevel+1);
 		bestLevel += 1;
-		EV << getName() << " now at level " << bestLevel << "\n";
 		send(newBlock, "out");
 		simtime_t timeToNextBlock = exponential(par("mineIntv").doubleValueInUnit("s"));	// PoW on node mines one block every 40 seconds
 		scheduleAt(simTime() + timeToNextBlock, nextBlock);
