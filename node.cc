@@ -16,9 +16,8 @@ Define_Module(FullNode);
 
 void FullNode::initialize()
 {
-    EV_INFO << "sending\n";
-
     // Am I Tic or Toc?
+    EV << "sending\n";
     if (strcmp("tic", getName()) == 0) {
         // create and send first message on gate "out". "tictocMsg" is an
         // arbitrary string which will be the name of the message object.

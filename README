@@ -3,3 +3,12 @@ Build
 
 opp_makemake
 make
+
+Options
+=======
+
+To enable logging in command line, set
+
+    cmdenv-express-mode = false
+
+in omnetpp.ini.
