@@ -8,8 +8,13 @@ using namespace omnetpp;
 class FullNode : public cSimpleModule
 {
 	private:
-		cMessage *nextBlock;  // pointer to the event object for mining the next block
-		int bestLevel;
+		cMessage *nextMine;  // event when a block is mined
+		cMessage *nextProc;  // event when a block is processed
+		cQueue *procQueue;   // blocks to be processed
+		int bestLevel;       // the highest block level
+		int blocksMined;
+		void scheduleNextMine();
+		void procBlock(NewBlock *block);
 
 	public:
 		FullNode();
@@ -25,40 +30,68 @@ Define_Module(FullNode);
 
 FullNode::FullNode()
 {
-	// ensure the point is null so that destructor will not try to free some random addr
-	nextBlock = nullptr;
+	nextMine = new cMessage("mined");
+	nextProc = new cMessage("proced");
 	bestLevel = 1;
+	blocksMined = 0;
+	procQueue = new cQueue("procQueue");
 }
 
 FullNode::~FullNode()
 {
-	cancelAndDelete(nextBlock);
+	cancelAndDelete(nextMine);
+	cancelAndDelete(nextProc);
+	delete procQueue;
+}
+
+void FullNode::scheduleNextMine() {
+	simtime_t timeToNextBlock = exponential(par("mineIntv").doubleValueInUnit("s"));
+	scheduleAt(simTime()+timeToNextBlock, nextMine);
+}
+
+void FullNode::procBlock(NewBlock *block) {
+	// update the best height
+	if (block->getHeight() > bestLevel) {
+		bestLevel = block->getHeight();
+	}
 }
 
 void FullNode::initialize()
 {
 	WATCH(bestLevel);
-	// schedule the next block to be mined
-	nextBlock = new cMessage("mined");
-	simtime_t timeToNextBlock = exponential(par("mineIntv").doubleValueInUnit("s"));	// PoW on node mines one block every 40 seconds
-	scheduleAt(timeToNextBlock, nextBlock);
+	WATCH(blocksMined);
+
+	scheduleNextMine();
 }
 
 void FullNode::handleMessage(cMessage *msg)
 {
-	if (msg == nextBlock) {
+	if (msg == nextMine) {
+		// block mining event
 		NewBlock *newBlock = new NewBlock("block");
 		newBlock->setHeight(bestLevel+1);
-		bestLevel += 1;
+		blocksMined += 1;
+		procBlock(newBlock);	// process it locally, does not take time
 		send(newBlock, "out");
-		simtime_t timeToNextBlock = exponential(par("mineIntv").doubleValueInUnit("s"));	// PoW on node mines one block every 40 seconds
-		scheduleAt(simTime() + timeToNextBlock, nextBlock);
-	} else {
-		NewBlock *block = (NewBlock*)(msg);
-		if (block->getHeight() > bestLevel) {
-			bestLevel = block->getHeight();
+		scheduleNextMine();
+	} else if (msg == nextProc) {
+		// block processing event
+		// take the next block from the queue
+		NewBlock *newBlock = (NewBlock*)procQueue->pop();
+		procBlock(newBlock);
+		delete newBlock;
+		// if the queue is not empty, schedule the next processing
+		if (!procQueue->isEmpty()) {
+			scheduleAt(simTime()+0.1, nextProc);
 		}
-		delete msg;	// delete the block
+	} else {
+		// schedule processing if no block is waiting for processing
+		if (procQueue->isEmpty()) {
+			scheduleAt(simTime()+0.1, nextProc);
+		}
+		// put it into processing queue
+		NewBlock *block = (NewBlock*)(msg);
+		procQueue->insert(block);
 	}
 
 }
