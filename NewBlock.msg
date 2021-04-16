@@ -1,0 +1,4 @@
+message NewBlock
+{
+	int height;
+};

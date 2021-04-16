@@ -2,4 +2,5 @@ test
 out
 results
 .cmdenv-log
+*_m.*
 Makefile
