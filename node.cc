@@ -1,5 +1,6 @@
 #include <string.h>
 #include <omnetpp.h>
+#include "NewBlock_m.h"
 
 using namespace omnetpp;
 
@@ -7,7 +8,8 @@ using namespace omnetpp;
 class FullNode : public cSimpleModule
 {
 	private:
-		cMessage *event;  // pointer to the event object for mining the next block
+		cMessage *nextBlock;  // pointer to the event object for mining the next block
+		int bestLevel;
 
 	public:
 		FullNode();
@@ -24,32 +26,38 @@ Define_Module(FullNode);
 FullNode::FullNode()
 {
 	// ensure the point is null so that destructor will not try to free some random addr
-	event = nullptr;
+	nextBlock = nullptr;
+	bestLevel = 1;
 }
 
 FullNode::~FullNode()
 {
-	cancelAndDelete(event);
+	cancelAndDelete(nextBlock);
 }
 
 void FullNode::initialize()
 {
 	// schedule the next block to be mined
-	event = new cMessage("mined");
+	nextBlock = new cMessage("mined");
 	simtime_t timeToNextBlock = exponential(40);	// PoW on node mines one block every 40 seconds
-	scheduleAt(timeToNextBlock, event);
+	scheduleAt(timeToNextBlock, nextBlock);
 }
 
 void FullNode::handleMessage(cMessage *msg)
 {
-	if (msg == event) {
-		EV << getName() << " mined a block\n";
-		cMessage* newBlock = new cMessage("block");
+	if (msg == nextBlock) {
+		NewBlock *newBlock = new NewBlock("block");
+		newBlock->setHeight(bestLevel+1);
+		bestLevel += 1;
+		EV << getName() << " now at level " << bestLevel << "\n";
 		send(newBlock, "out");
 		simtime_t timeToNextBlock = exponential(40);	// PoW on node mines one block every 40 seconds
-		scheduleAt(simTime() + timeToNextBlock, event);
+		scheduleAt(simTime() + timeToNextBlock, nextBlock);
 	} else {
-		EV << getName() << " received a block\n";
+		NewBlock *block = (NewBlock*)(msg);
+		if (block->getHeight() > bestLevel) {
+			bestLevel = block->getHeight();
+		}
 		delete msg;	// delete the block
 	}
 
