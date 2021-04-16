@@ -1,4 +1,6 @@
 test
+*.swp
+.qtenvrc
 out
 results
 .cmdenv-log
