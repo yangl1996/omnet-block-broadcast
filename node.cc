@@ -8,13 +8,15 @@ using namespace omnetpp;
 class FullNode : public cSimpleModule
 {
 	private:
+		int id;          // id of the node
+		int nextBlockSeq;    // sequence of the block; combined with id identifies a block
 		cMessage *nextMine;  // event when a block is mined
 		cMessage *nextProc;  // event when a block is processed
 		cQueue *procQueue;   // blocks to be processed
 		int bestLevel;       // the highest block level
-		int blocksMined;
 		void scheduleNextMine();
 		void procBlock(NewBlock *block);
+		NewBlock* mineBlock();
 
 	public:
 		FullNode();
@@ -32,8 +34,8 @@ FullNode::FullNode()
 {
 	nextMine = new cMessage("mined");
 	nextProc = new cMessage("proced");
-	bestLevel = 1;
-	blocksMined = 0;
+	bestLevel = 0;
+	nextBlockSeq = 0;
 	procQueue = new cQueue("procQueue");
 }
 
@@ -49,6 +51,15 @@ void FullNode::scheduleNextMine() {
 	scheduleAt(simTime()+timeToNextBlock, nextMine);
 }
 
+NewBlock* FullNode::mineBlock() {
+	NewBlock *newBlock = new NewBlock("block");
+	newBlock->setHeight(bestLevel+1);
+	newBlock->setMiner(id);
+	newBlock->setSeq(nextBlockSeq);
+	nextBlockSeq += 1;
+	return newBlock;
+}
+
 void FullNode::procBlock(NewBlock *block) {
 	// update the best height
 	if (block->getHeight() > bestLevel) {
@@ -58,8 +69,9 @@ void FullNode::procBlock(NewBlock *block) {
 
 void FullNode::initialize()
 {
+	id = par("id").intValue(); // cannot be placed in the constructor because the parameter was not ready
 	WATCH(bestLevel);
-	WATCH(blocksMined);
+	WATCH(nextBlockSeq);
 
 	scheduleNextMine();
 }
@@ -68,9 +80,7 @@ void FullNode::handleMessage(cMessage *msg)
 {
 	if (msg == nextMine) {
 		// block mining event
-		NewBlock *newBlock = new NewBlock("block");
-		newBlock->setHeight(bestLevel+1);
-		blocksMined += 1;
+		NewBlock *newBlock = mineBlock();
 		procBlock(newBlock);	// process it locally, does not take time
 		send(newBlock, "out");
 		scheduleNextMine();
