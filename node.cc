@@ -11,7 +11,7 @@ using namespace std;
 long packBlockId(unsigned short miner, unsigned int seq) {
 	unsigned long m = (unsigned long)miner;
 	unsigned long s = (unsigned long)seq;
-	return (long)(m << sizeof(unsigned int)) + s;
+	return (long)(m << (sizeof(unsigned int)* 8)) + s;
 }
 
 // FullNode is a full node in a blockchain network.
