@@ -139,6 +139,7 @@ void FullNode::handleMessage(cMessage *msg)
 			}
 			// put it into processing queue
 			blockProcQueue.insert(msg);
+			return;
 		}
 
 		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
@@ -156,6 +157,7 @@ void FullNode::handleMessage(cMessage *msg)
 				send(req, gate);
 			}
 			delete newBlockHash;	// this is a disposable message
+			return;
 		}
 
 		GetBlock *getBlock = dynamic_cast<GetBlock*>(msg);
@@ -166,7 +168,8 @@ void FullNode::handleMessage(cMessage *msg)
 			resp->setMiner(getBlock->getMiner());
 			resp->setSeq(getBlock->getSeq());
 			send(resp, gate);
-			//delete getBlock;	// this is a disposable message
+			delete getBlock;	// this is a disposable message
+			return;
 		}
 	}
 }
