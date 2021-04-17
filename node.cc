@@ -22,6 +22,8 @@ class FullNode : public cSimpleModule
 		cMessage *nextProc;  // event when a block is processed
 		cQueue procQueue;   // blocks to be processed
 		unsigned int bestLevel;       // the highest block level
+		unordered_set<long> heardBlocks; // set of blocks that are heard of
+		unordered_set<long> rcvdBlocks;  // set of blocks that have been downloaded
 		void scheduleNextMine();
 		void procBlock(NewBlock *block);
 		void announceBlock(NewBlock *block);
@@ -46,6 +48,8 @@ FullNode::FullNode()
 	bestLevel = 0;
 	nextBlockSeq = 0;
 	procQueue = cQueue("procQueue");
+	heardBlocks = unordered_set<long>();
+	rcvdBlocks = unordered_set<long>();
 }
 
 FullNode::~FullNode()
@@ -81,12 +85,12 @@ NewBlock* FullNode::mineBlock() {
 	return newBlock;
 }
 
-// Processes a new block. Currently it simply updates the best height.
+// Processes a new block. Update the best height, and records the reception of the block.
 void FullNode::procBlock(NewBlock *block) {
-	// update the best height
 	if (block->getHeight() > bestLevel) {
 		bestLevel = block->getHeight();
 	}
+	rcvdBlocks.insert(packBlockId(block->getMiner(), block->getSeq()));
 }
 
 void FullNode::handleMessage(cMessage *msg)
