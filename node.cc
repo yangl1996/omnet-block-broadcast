@@ -3,6 +3,7 @@
 #include "NewBlock_m.h"
 
 using namespace omnetpp;
+using namespace std;
 
 // Packs the miner ID and block sequence number into a long int
 long packBlockId(unsigned short miner, unsigned int seq) {
@@ -19,7 +20,7 @@ class FullNode : public cSimpleModule
 		unsigned int nextBlockSeq;    // sequence of the block; combined with id identifies a block
 		cMessage *nextMine;  // event when a block is mined
 		cMessage *nextProc;  // event when a block is processed
-		cQueue *procQueue;   // blocks to be processed
+		cQueue procQueue;   // blocks to be processed
 		unsigned int bestLevel;       // the highest block level
 		void scheduleNextMine();
 		void procBlock(NewBlock *block);
@@ -44,14 +45,13 @@ FullNode::FullNode()
 	nextProc = new cMessage("proced");
 	bestLevel = 0;
 	nextBlockSeq = 0;
-	procQueue = new cQueue("procQueue");
+	procQueue = cQueue("procQueue");
 }
 
 FullNode::~FullNode()
 {
 	cancelAndDelete(nextMine);
 	cancelAndDelete(nextProc);
-	delete procQueue;
 }
 
 void FullNode::initialize()
@@ -100,20 +100,20 @@ void FullNode::handleMessage(cMessage *msg)
 	} else if (msg == nextProc) {
 		// block processing event
 		// take the next block from the queue
-		NewBlock *newBlock = (NewBlock*)procQueue->pop();
+		NewBlock *newBlock = (NewBlock*)procQueue.pop();
 		procBlock(newBlock);
 		delete newBlock;
 		// if the queue is not empty, schedule the next processing
-		if (!procQueue->isEmpty()) {
+		if (!procQueue.isEmpty()) {
 			scheduleAt(simTime()+0.1, nextProc);
 		}
 	} else {
 		// schedule processing if no block is waiting for processing
-		if (procQueue->isEmpty()) {
+		if (procQueue.isEmpty()) {
 			scheduleAt(simTime()+0.1, nextProc);
 		}
 		// put it into processing queue
 		NewBlock *block = (NewBlock*)(msg);
-		procQueue->insert(block);
+		procQueue.insert(block);
 	}
 }
