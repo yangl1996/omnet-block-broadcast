@@ -1,6 +1,7 @@
 #include <string.h>
 #include <omnetpp.h>
 #include "NewBlock_m.h"
+#include "GetBlock_m.h"
 #include "NewBlockHash_m.h"
 
 using namespace omnetpp;
@@ -11,22 +12,6 @@ long packBlockId(unsigned short miner, unsigned int seq) {
 	unsigned long m = (unsigned long)miner;
 	unsigned long s = (unsigned long)seq;
 	return (long)(m << sizeof(unsigned int)) + s;
-}
-
-NewBlockHash* hashFromBlock(NewBlock* block) {
-	NewBlockHash* hash = new NewBlockHash();
-	hash->setHeight(block->getHeight());
-	hash->setMiner(block->getMiner());
-	hash->setSeq(block->getSeq());
-	return hash;
-}
-
-NewBlock* blockFromHash(NewBlockHash* hash) {
-	NewBlock* newBlock = new NewBlock();
-	newBlock->setHeight(hash->getHeight());
-	newBlock->setMiner(hash->getMiner());
-	newBlock->setSeq(hash->getSeq());
-	return newBlock;
 }
 
 // FullNode is a full node in a blockchain network.
@@ -40,13 +25,11 @@ class FullNode : public cSimpleModule
 		cQueue blockProcQueue;   // blocks to be processed
 		unsigned int bestLevel;       // the highest block level
 		unordered_set<long> heardBlocks; // set of blocks that are heard of
-		unordered_set<long> reqdBlocks;  // set of blocks that have been requestd
+		unordered_set<long> rcvdBlocks;  // set of blocks that have been received
 
 		void scheduleNextMine();
 		void procBlock(NewBlock *block);
-		void announceBlock(NewBlock *block);
 		NewBlock* mineBlock();
-		void maybeBroadcastBlockHash(NewBlockHash *hash);
 
 	public:
 		FullNode();
@@ -68,7 +51,7 @@ FullNode::FullNode()
 	nextBlockSeq = 0;
 	blockProcQueue = cQueue("blockProcQueue");
 	heardBlocks = unordered_set<long>();
-	reqdBlocks = unordered_set<long>();
+	rcvdBlocks = unordered_set<long>();
 }
 
 FullNode::~FullNode()
@@ -105,25 +88,27 @@ NewBlock* FullNode::mineBlock() {
 }
 
 // Processes a new block. Update the best height, and records the reception of the block.
+// Then announces the block to peers.
 void FullNode::procBlock(NewBlock *block) {
-	if (block->getHeight() > bestLevel) {
-		bestLevel = block->getHeight();
-	}
-	reqdBlocks.insert(packBlockId(block->getMiner(), block->getSeq()));
-}
-
-// Check if we have broadcast the hash before. If not, send out hash to all neighbors and
-// record that we have done so.
-void FullNode::maybeBroadcastBlockHash(NewBlockHash *hash) {
-	long id = packBlockId(hash->getMiner(), hash->getSeq());
-	if (heardBlocks.find(id) == heardBlocks.end()) {
-		// if we have not heard of this block
-		int n = gateSize("link");
-		for (int i = 0; i < n; i++) {
-			send(hash->dup(), "link$o", i);
-		}
+	long id = packBlockId(block->getMiner(), block->getSeq());
+	// only process it if it has not been heard
+	if (rcvdBlocks.find(id) == rcvdBlocks.end()) {
+		rcvdBlocks.insert(id);
 		heardBlocks.insert(id);
+		if (block->getHeight() > bestLevel) {
+			bestLevel = block->getHeight();
+		}
+		int n = gateSize("link");
+		// broadcast the message
+		for (int i = 0; i < n; i++) {
+			NewBlockHash* m = new NewBlockHash();
+			m->setHeight(block->getHeight());
+			m->setMiner(block->getMiner());
+			m->setSeq(block->getSeq());
+			send(m, "link$o", i);
+		}
 	}
+
 }
 
 void FullNode::handleMessage(cMessage *msg)
@@ -132,9 +117,6 @@ void FullNode::handleMessage(cMessage *msg)
 		// block mining event
 		NewBlock *newBlock = mineBlock();
 		procBlock(newBlock);	// process it locally, does not take time
-		NewBlockHash *hash = hashFromBlock(newBlock);
-		maybeBroadcastBlockHash(hash);
-		delete hash;
 		delete newBlock;
 		scheduleNextMine();
 	} else if (msg == nextProcBlock) {
@@ -161,8 +143,30 @@ void FullNode::handleMessage(cMessage *msg)
 
 		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
 		if (newBlockHash != nullptr) {
-			maybeBroadcastBlockHash(newBlockHash);
-			delete newBlockHash;
+			long id = packBlockId(newBlockHash->getMiner(), newBlockHash->getSeq());
+			// request the block if not requested before
+			if (heardBlocks.find(id) == heardBlocks.end()) {
+				heardBlocks.insert(id);
+				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
+				// get other half because it's an inout gate
+				GetBlock *req = new GetBlock();
+				req->setHeight(newBlockHash->getHeight());
+				req->setMiner(newBlockHash->getMiner());
+				req->setSeq(newBlockHash->getSeq());
+				send(req, gate);
+			}
+			delete newBlockHash;	// this is a disposable message
+		}
+
+		GetBlock *getBlock = dynamic_cast<GetBlock*>(msg);
+		if (getBlock != nullptr) {
+			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
+			NewBlock *resp = new NewBlock();
+			resp->setHeight(getBlock->getHeight());
+			resp->setMiner(getBlock->getMiner());
+			resp->setSeq(getBlock->getSeq());
+			send(resp, gate);
+			//delete getBlock;	// this is a disposable message
 		}
 	}
 }
