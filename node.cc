@@ -16,6 +16,7 @@ class FullNode : public cSimpleModule
 		int bestLevel;       // the highest block level
 		void scheduleNextMine();
 		void procBlock(NewBlock *block);
+		void announceBlock(NewBlock *block);
 		NewBlock* mineBlock();
 
 	public:
@@ -46,11 +47,24 @@ FullNode::~FullNode()
 	delete procQueue;
 }
 
+void FullNode::initialize()
+{
+	id = par("id").intValue(); // cannot be placed in the constructor because the parameter was not ready
+	WATCH(bestLevel);
+	WATCH(nextBlockSeq);
+
+	scheduleNextMine();
+}
+
+// Randomly samples an exponential delay and schedules the nextMine
+// event to happen after that time.
 void FullNode::scheduleNextMine() {
 	simtime_t timeToNextBlock = exponential(par("mineIntv").doubleValueInUnit("s"));
 	scheduleAt(simTime()+timeToNextBlock, nextMine);
 }
 
+// Creates a NewBlock message with appropriate height, miner ID, and sequence number, and
+// increases the block sequence number.
 NewBlock* FullNode::mineBlock() {
 	NewBlock *newBlock = new NewBlock("block");
 	newBlock->setHeight(bestLevel+1);
@@ -60,20 +74,12 @@ NewBlock* FullNode::mineBlock() {
 	return newBlock;
 }
 
+// Processes a new block. Currently it simply updates the best height.
 void FullNode::procBlock(NewBlock *block) {
 	// update the best height
 	if (block->getHeight() > bestLevel) {
 		bestLevel = block->getHeight();
 	}
-}
-
-void FullNode::initialize()
-{
-	id = par("id").intValue(); // cannot be placed in the constructor because the parameter was not ready
-	WATCH(bestLevel);
-	WATCH(nextBlockSeq);
-
-	scheduleNextMine();
 }
 
 void FullNode::handleMessage(cMessage *msg)
@@ -103,5 +109,4 @@ void FullNode::handleMessage(cMessage *msg)
 		NewBlock *block = (NewBlock*)(msg);
 		procQueue->insert(block);
 	}
-
 }
