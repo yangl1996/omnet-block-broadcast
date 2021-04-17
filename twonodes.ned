@@ -2,7 +2,6 @@ simple FullNode
 {
     parameters:
         double mineIntv @unit(s) = default(40s);
-        int id;
     gates:
         inout link[];
 }
@@ -10,14 +9,8 @@ simple FullNode
 network TwoNodes
 {
     submodules:
-        node_1: FullNode {
-		parameters:
-			id = 1;
-	}
-        node_2: FullNode {
-		parameters:
-			id = 2;
-	}
+        node[3]: FullNode;
     connections:
-        node_1.link++ <--> {  delay = 100ms; } <--> node_2.link++;
+        node[0].link++ <--> {  delay = 100ms; } <--> node[1].link++;
+        node[1].link++ <--> {  delay = 100ms; } <--> node[2].link++;
 }

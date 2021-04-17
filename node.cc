@@ -62,7 +62,7 @@ FullNode::~FullNode()
 
 void FullNode::initialize()
 {
-	id = par("id").intValue(); // cannot be placed in the constructor because the parameter was not ready
+	id = getIndex(); // cannot be placed in the constructor because the parameter was not ready
 	WATCH(bestLevel);
 	WATCH(nextBlockSeq);
 
