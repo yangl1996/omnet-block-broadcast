@@ -1,6 +1,6 @@
 message NewBlockHash
 {
 	int height;
-	int miner;
+	unsigned short miner;
 	int seq;
 };

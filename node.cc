@@ -4,16 +4,23 @@
 
 using namespace omnetpp;
 
+// Packs the miner ID and block sequence number into a long int
+long packBlockId(unsigned short miner, unsigned int seq) {
+	unsigned long m = (unsigned long)miner;
+	unsigned long s = (unsigned long)seq;
+	return (long)(m << sizeof(unsigned int)) + s;
+}
+
 // FullNode is a full node in a blockchain network.
 class FullNode : public cSimpleModule
 {
 	private:
-		int id;          // id of the node
-		int nextBlockSeq;    // sequence of the block; combined with id identifies a block
+		unsigned short id;          // id of the node
+		unsigned int nextBlockSeq;    // sequence of the block; combined with id identifies a block
 		cMessage *nextMine;  // event when a block is mined
 		cMessage *nextProc;  // event when a block is processed
 		cQueue *procQueue;   // blocks to be processed
-		int bestLevel;       // the highest block level
+		unsigned int bestLevel;       // the highest block level
 		void scheduleNextMine();
 		void procBlock(NewBlock *block);
 		void announceBlock(NewBlock *block);

@@ -1,6 +1,6 @@
 message NewBlock
 {
 	int height;
-	int miner;
+	unsigned short miner;
 	int seq;
 };
