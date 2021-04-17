@@ -158,5 +158,11 @@ void FullNode::handleMessage(cMessage *msg)
 			// put it into processing queue
 			blockProcQueue.insert(msg);
 		}
+
+		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
+		if (newBlockHash != nullptr) {
+			maybeBroadcastBlockHash(newBlockHash);
+			delete newBlockHash;
+		}
 	}
 }
