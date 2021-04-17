@@ -1,6 +1,7 @@
 #include <string.h>
 #include <omnetpp.h>
 #include "NewBlock_m.h"
+#include "NewBlockHash_m.h"
 
 using namespace omnetpp;
 using namespace std;
@@ -24,10 +25,12 @@ class FullNode : public cSimpleModule
 		unsigned int bestLevel;       // the highest block level
 		unordered_set<long> heardBlocks; // set of blocks that are heard of
 		unordered_set<long> rcvdBlocks;  // set of blocks that have been downloaded
+
 		void scheduleNextMine();
 		void procBlock(NewBlock *block);
 		void announceBlock(NewBlock *block);
 		NewBlock* mineBlock();
+		void maybeBroadcastBlockHash(NewBlockHash *hash);
 
 	public:
 		FullNode();
@@ -93,13 +96,27 @@ void FullNode::procBlock(NewBlock *block) {
 	rcvdBlocks.insert(packBlockId(block->getMiner(), block->getSeq()));
 }
 
+// Check if we have broadcast the hash before. If not, send out hash to all neighbors and
+// record that we have done so.
+void FullNode::maybeBroadcastBlockHash(NewBlockHash *hash) {
+	long id = packBlockId(hash->getMiner(), hash->getSeq());
+	if (heardBlocks.find(id) == heardBlocks.end()) {
+		// if we have not heard of this block
+		int n = gateSize("link");
+		for (int i = 0; i < n; i++) {
+			send(hash->dup(), "link$o", i);
+		}
+		heardBlocks.insert(id);
+	}
+}
+
 void FullNode::handleMessage(cMessage *msg)
 {
 	if (msg == nextMine) {
 		// block mining event
 		NewBlock *newBlock = mineBlock();
 		procBlock(newBlock);	// process it locally, does not take time
-		send(newBlock, "out");
+		send(newBlock, "link$o", 0);
 		scheduleNextMine();
 	} else if (msg == nextProc) {
 		// block processing event
