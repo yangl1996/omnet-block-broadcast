@@ -18,6 +18,7 @@ long packBlockId(unsigned short miner, unsigned int seq) {
 class FullNode : public cSimpleModule
 {
 	private:
+		// internal states
 		unsigned short id;          // id of the node
 		unsigned int nextBlockSeq;    // sequence of the block; combined with id identifies a block
 		cMessage *nextMine;  // event when a block is mined
@@ -27,9 +28,13 @@ class FullNode : public cSimpleModule
 		unordered_set<long> heardBlocks; // set of blocks that are heard of
 		unordered_set<long> rcvdBlocks;  // set of blocks that have been received
 
+		// internal methods
 		void scheduleNextMine();
 		void procBlock(NewBlock *block);
 		NewBlock* mineBlock();
+
+		// stats
+		cHistogram delayStats;	// records the block delay
 
 	public:
 		FullNode();
@@ -52,6 +57,7 @@ FullNode::FullNode()
 	blockProcQueue = cQueue("blockProcQueue");
 	heardBlocks = unordered_set<long>();
 	rcvdBlocks = unordered_set<long>();
+	delayStats = cHistogram("blockDelay", 200);
 }
 
 FullNode::~FullNode()
@@ -83,6 +89,7 @@ NewBlock* FullNode::mineBlock() {
 	newBlock->setHeight(bestLevel+1);
 	newBlock->setMiner(id);
 	newBlock->setSeq(nextBlockSeq);
+	newBlock->setTimeMined(simTime().dbl());
 	nextBlockSeq += 1;
 	return newBlock;
 }
@@ -95,6 +102,7 @@ void FullNode::procBlock(NewBlock *block) {
 	if (rcvdBlocks.find(id) == rcvdBlocks.end()) {
 		rcvdBlocks.insert(id);
 		heardBlocks.insert(id);
+		delayStats.collect(simTime().dbl() - block->getTimeMined());
 		if (block->getHeight() > bestLevel) {
 			bestLevel = block->getHeight();
 		}
@@ -105,6 +113,7 @@ void FullNode::procBlock(NewBlock *block) {
 			m->setHeight(block->getHeight());
 			m->setMiner(block->getMiner());
 			m->setSeq(block->getSeq());
+			m->setTimeMined(block->getTimeMined());
 			send(m, "link$o", i);
 		}
 	}
@@ -154,6 +163,7 @@ void FullNode::handleMessage(cMessage *msg)
 				req->setHeight(newBlockHash->getHeight());
 				req->setMiner(newBlockHash->getMiner());
 				req->setSeq(newBlockHash->getSeq());
+				req->setTimeMined(newBlockHash->getTimeMined());
 				send(req, gate);
 			}
 			delete newBlockHash;	// this is a disposable message
@@ -167,6 +177,7 @@ void FullNode::handleMessage(cMessage *msg)
 			resp->setHeight(getBlock->getHeight());
 			resp->setMiner(getBlock->getMiner());
 			resp->setSeq(getBlock->getSeq());
+			resp->setTimeMined(getBlock->getTimeMined());
 			send(resp, gate);
 			delete getBlock;	// this is a disposable message
 			return;
