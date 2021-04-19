@@ -18,8 +18,13 @@ long packBlockId(unsigned short miner, unsigned int seq) {
 class FullNode : public cSimpleModule
 {
 	private:
-		// internal states
+		// parameters
 		unsigned short id;          // id of the node
+		bool roundTime; // round time (round mode), 0 for continuous time mode
+		cExponential rvBlockDelay; // block inter-arrival time (continuous time mode)
+		cPoisson rvBlocksPerRound; // blocks per round (round mode)
+
+		// internal states
 		unsigned int nextBlockSeq;    // sequence of the block; combined with id identifies a block
 		cMessage *nextMine;  // event when a block is mined
 		cMessage *nextProcBlock;  // event when a block is processed
@@ -74,14 +79,30 @@ void FullNode::initialize()
 	WATCH(bestLevel);
 	WATCH(nextBlockSeq);
 
+	// set up mining RVs
+	roundTime = par("roundTime").doubleValueInUnit("s");
+	double miningRate = par("miningRate").doubleValue(); // in blocks per second
+	if (roundTime == 0.0) {
+		// continuous time mode
+		rvBlockDelay = cExponential(nullptr, 1.0 / miningRate);
+	}
+	else {
+		// round mode
+		rvBlocksPerRound = cPoisson(nullptr, roundTime * miningRate);
+	}
+
 	scheduleNextMine();
 }
 
 // Randomly samples an exponential delay and schedules the nextMine
 // event to happen after that time.
 void FullNode::scheduleNextMine() {
-	simtime_t timeToNextBlock = exponential(par("mineIntv").doubleValueInUnit("s"));
-	scheduleAt(simTime()+timeToNextBlock, nextMine);
+	if (roundTime == 0.0) {
+		scheduleAt(simTime()+rvBlockDelay.draw(), nextMine);
+	}
+	else {
+		scheduleAt(simTime()+roundTime, nextMine);
+	}
 }
 
 // Creates a NewBlock message with appropriate height, miner ID, and sequence number, and
@@ -119,17 +140,27 @@ void FullNode::procBlock(NewBlock *block) {
 			send(m, "link$o", i);
 		}
 	}
-
 }
 
 void FullNode::handleMessage(cMessage *msg)
 {
 	if (msg == nextMine) {
 		// block mining event
-		NewBlock *newBlock = mineBlock();
-		procBlock(newBlock);	// process it locally, does not take time
-		delete newBlock;
-		scheduleNextMine();
+		if (roundTime == 0.0) {
+			NewBlock *newBlock = mineBlock();
+			procBlock(newBlock);	// process it locally, does not take time
+			delete newBlock;
+			scheduleNextMine();
+		}
+		else {
+			int nBlocks = int(rvBlocksPerRound.draw());
+			for (int i = 0; i < nBlocks; i++) {
+				NewBlock *newBlock = mineBlock();
+				procBlock(newBlock);	// process it locally, does not take time
+				delete newBlock;
+				scheduleNextMine();
+			}
+		}
 	} else if (msg == nextProcBlock) {
 		// block processing event
 		// take the next block from the queue
