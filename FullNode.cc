@@ -20,7 +20,7 @@ class FullNode : public cSimpleModule
 	private:
 		// parameters
 		unsigned short id;          // id of the node
-		bool roundTime; // round time (round mode), 0 for continuous time mode
+		double roundTime; // round time (round mode), 0 for continuous time mode
 		cExponential rvBlockDelay; // block inter-arrival time (continuous time mode)
 		cPoisson rvBlocksPerRound; // blocks per round (round mode)
 
@@ -80,16 +80,17 @@ void FullNode::initialize()
 	WATCH(nextBlockSeq);
 
 	// set up mining RVs
-	roundTime = par("roundTime").doubleValueInUnit("s");
+	roundTime = par("roundIntv").doubleValueInUnit("s");
 	double miningRate = par("miningRate").doubleValue(); // in blocks per second
 	if (roundTime == 0.0) {
 		// continuous time mode
-		rvBlockDelay = cExponential(nullptr, 1.0 / miningRate);
+		rvBlockDelay = cExponential(getRNG(0), 1.0 / miningRate);
 	}
 	else {
 		// round mode
-		rvBlocksPerRound = cPoisson(nullptr, roundTime * miningRate);
+		rvBlocksPerRound = cPoisson(getRNG(0), roundTime * miningRate);
 	}
+	EV << roundTime << endl;
 
 	scheduleNextMine();
 }
