@@ -136,7 +136,7 @@ void FullNode::handleMessage(cMessage *msg)
 		delete newBlock;
 		// if the queue is not empty, schedule the next processing
 		if (!blockProcQueue.isEmpty()) {
-			scheduleAt(simTime()+0.1, nextProcBlock);
+			scheduleAt(simTime()+par("procTime").doubleValueInUnit("s"), nextProcBlock);
 		}
 	} else {
 		// check message type
@@ -144,7 +144,7 @@ void FullNode::handleMessage(cMessage *msg)
 		if (newBlock != nullptr) {
 			// schedule processing if no block is waiting for processing
 			if (blockProcQueue.isEmpty()) {
-				scheduleAt(simTime()+0.1, nextProcBlock);
+				scheduleAt(simTime()+par("procTime").doubleValueInUnit("s"), nextProcBlock);
 			}
 			// put it into processing queue
 			blockProcQueue.insert(msg);
