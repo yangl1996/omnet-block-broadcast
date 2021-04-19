@@ -35,6 +35,7 @@ class FullNode : public cSimpleModule
 
 		// stats
 		cHistogram delayStats;	// records the block delay
+		// TODO: also try cPSquare
 
 	public:
 		FullNode();
@@ -42,6 +43,7 @@ class FullNode : public cSimpleModule
 
 	protected:
 		virtual void initialize() override;
+		virtual void finish() override;
 		virtual void handleMessage(cMessage *msg) override;
 };
 
@@ -182,5 +184,11 @@ void FullNode::handleMessage(cMessage *msg)
 			delete getBlock;	// this is a disposable message
 			return;
 		}
+	}
+}
+
+void FullNode::finish() {
+	if (getIndex() == 0) {
+		EV << "Node 0 max delay: " << delayStats.getMax() << endl;
 	}
 }
