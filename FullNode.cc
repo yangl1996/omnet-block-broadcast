@@ -150,7 +150,6 @@ void FullNode::handleMessage(cMessage *msg)
 			NewBlock *newBlock = mineBlock();
 			procBlock(newBlock);	// process it locally, does not take time
 			delete newBlock;
-			scheduleNextMine();
 		}
 		else {
 			int nBlocks = int(rvBlocksPerRound.draw());
@@ -158,9 +157,9 @@ void FullNode::handleMessage(cMessage *msg)
 				NewBlock *newBlock = mineBlock();
 				procBlock(newBlock);	// process it locally, does not take time
 				delete newBlock;
-				scheduleNextMine();
 			}
 		}
+		scheduleNextMine();
 	} else if (msg == nextProcBlock) {
 		// block processing event
 		// take the next block from the queue
