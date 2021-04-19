@@ -14,7 +14,7 @@ edgeTemplate = """        node[{node1}].link++ <--> {{  delay = {edgeDelay}ms; }
 """
 
 D=4
-N=50
+N=1000
 
 graph = networkx.generators.random_graphs.random_regular_graph(D, N)
 
