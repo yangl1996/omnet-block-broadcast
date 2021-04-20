@@ -20,6 +20,6 @@ graph = networkx.generators.random_graphs.random_regular_graph(D, N)
 
 edgeStr = ""
 for a, b in graph.edges():
-    edgeStr += edgeTemplate.format(node1=a, node2=b, edgeDelay=100)
+    edgeStr += edgeTemplate.format(node1=a, node2=b, edgeDelay=0)
 
 print(template.format(numNodes=N, edges=edgeStr, netName="RandReg"))
