@@ -15,11 +15,23 @@ long packBlockId(unsigned short miner, unsigned int seq) {
 }
 
 // FullNode is a full node in a blockchain network.
+// It supports three modes:
+//   Continuous mode, where blocks are mined as in PoW. Set ronudIntv and numFixedMiners
+//   to zero, and set miningRate to the desired per-node mining rate.
+//
+//   Round-by-round mode, where blocks are mined as in PoS. Set roundIntv to the rount
+//   interval, and set miningRate to the desired per-node mining rate (blocks per
+//   second). Set numFixedMiners to zero.
+//
+//   Fixed miner mode, where the same set of miners mine one block in each round. Set
+//   numFixedMiners to the number of miners in each round, and set roundIntv to the
+//   desired round interval. Ignore the mining rate setting.
 class FullNode : public cSimpleModule
 {
 	private:
 		// parameters
 		unsigned short id;          // id of the node
+		int numFixedMiners; // number of miners in each round; used for network experiments
 		double roundTime; // round time (round mode), 0 for continuous time mode
 		cExponential rvBlockDelay; // block inter-arrival time (continuous time mode)
 		cPoisson rvBlocksPerRound; // blocks per round (round mode)
@@ -80,6 +92,7 @@ void FullNode::initialize()
 	WATCH(nextBlockSeq);
 
 	// set up mining RVs
+	numFixedMiners = par("numFixedMiners").intValue();
 	roundTime = par("roundIntv").doubleValueInUnit("s");
 	double miningRate = par("miningRate").doubleValue(); // in blocks per second
 	if (roundTime == 0.0) {
@@ -153,7 +166,13 @@ void FullNode::handleMessage(cMessage *msg)
 			delete newBlock;
 		}
 		else {
-			int nBlocks = int(rvBlocksPerRound.draw());
+			int nBlocks;
+			if (numFixedMiners > 0) {
+				nBlocks = getIndex() < numFixedMiners? 1 : 0;
+			}
+			else {
+				nBlocks = int(rvBlocksPerRound.draw());
+			}
 			for (int i = 0; i < nBlocks; i++) {
 				NewBlock *newBlock = mineBlock();
 				procBlock(newBlock);	// process it locally, does not take time
