@@ -8,5 +8,12 @@ for f in ./*.out; do
 		num=`echo $line | cut -d ' ' -f 6`
 		((num > max)) && max=$num
 	done <<< "$res_line"
-	printf '%f  %f\n' $param $max
+
+	res_line=`grep 'min delay' $f`
+	min=0
+	while IFS= read -r line; do
+		num=`echo $line | cut -d ' ' -f 6`
+		((num > min)) && min=$num
+	done <<< "$res_line"
+	printf '%f  %f  %f\n' $param $max $min
 done
