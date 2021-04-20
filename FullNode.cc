@@ -238,7 +238,5 @@ void FullNode::handleMessage(cMessage *msg)
 }
 
 void FullNode::finish() {
-	if (getIndex() == 0) {
-		EV << "Node 0 max delay: " << delayStats.getMax() << endl;
-	}
+	EV << "Node " << getIndex() << " max delay: " << delayStats.getMax() << endl;
 }
