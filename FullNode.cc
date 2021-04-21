@@ -124,7 +124,7 @@ NewBlock* FullNode::mineBlock() {
 	newBlock->setHeight(bestLevel+1);
 	newBlock->setMiner(id);
 	newBlock->setSeq(nextBlockSeq);
-	newBlock->setTimeMined(simTime().dbl());
+	newBlock->setTimeMined(simTime());
 	nextBlockSeq += 1;
 	return newBlock;
 }
@@ -137,7 +137,7 @@ void FullNode::procBlock(NewBlock *block) {
 	if (rcvdBlocks.find(id) == rcvdBlocks.end()) {
 		rcvdBlocks.insert(id);
 		heardBlocks.insert(id);
-		delayStats.collect(simTime().dbl() - block->getTimeMined());
+		delayStats.collect(simTime() - block->getTimeMined());
 		if (block->getHeight() > bestLevel) {
 			bestLevel = block->getHeight();
 		}
