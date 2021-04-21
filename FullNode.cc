@@ -1,8 +1,6 @@
 #include <string.h>
 #include <omnetpp.h>
-#include "NewBlock_m.h"
-#include "GetBlock_m.h"
-#include "NewBlockHash_m.h"
+#include "ethp2p_m.h"
 
 using namespace omnetpp;
 using namespace std;
