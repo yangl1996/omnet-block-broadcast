@@ -3,11 +3,18 @@ OMNET++ Modules for Blockchain Network Simulation
 Components
 ==========
 
-FullNode (FullNode.ned, FullNode.cc)
-  Blockchain node capable of mining and forwarding blocks.
+Miner (Miner.ned, Miner.cc)
+  Configurable blockchain miner that mimics PoW, PoS, or generates blocks in
+  a deterministic manner.
+
+NodeP2P (NodeP2P.ned, NodeP2P.cc)
+  Blockchain P2P node that loosely follows the Ethereum devp2p protocol.
+
+FullNode (FullNode.ned)
+  Blockchain full node, consists of a Miner and a NodeP2P module.
 
 ethp2p (ethp2p.msg)
-  P2P messages loosely based on Ethereum devp2p.
+  P2P message types loosely based on Ethereum devp2p.
 
 scripts/randreg.py
   Generate random regular graphs.
