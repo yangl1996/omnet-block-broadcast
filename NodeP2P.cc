@@ -61,7 +61,6 @@ void NodeP2P::processedNewBlock(NewBlock *block) {
 	long id = packBlockId(block->getMiner(), block->getSeq());
 	// only announce it if it is not announced before
 	if (blocks.find(id) == blocks.end() || blocks[id] != 'a') {
-		EV << "Announcing new block " << id << endl;
 		blocks[id] = 'a';
 		int n = gateSize("peer");
 		// broadcast the message
@@ -95,7 +94,6 @@ void NodeP2P::handleMessage(cMessage *msg)
 			long id = packBlockId(newBlockHash->getMiner(), newBlockHash->getSeq());
 			// request the block if not requested before
 			if (blocks.find(id) == blocks.end()) {
-				EV << "Requesting new block " << id << endl;
 				blocks[id] = 'h';	// mark that we have heard the block
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
@@ -113,7 +111,6 @@ void NodeP2P::handleMessage(cMessage *msg)
 		GetBlock *getBlock = dynamic_cast<GetBlock*>(msg);
 		if (getBlock != nullptr) {
 			long id = packBlockId(getBlock->getMiner(), getBlock->getSeq());
-			EV << "Responding block " << id << endl;
 			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
 			NewBlock *resp = new NewBlock();
 			resp->setHeight(getBlock->getHeight());

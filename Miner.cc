@@ -75,7 +75,6 @@ Miner::~Miner()
 void Miner::initialize()
 {
 	id = par("id").intValue(); // cannot be placed in the constructor because the parameter was not ready
-	EV << "Node ID=" << id << endl;
 	WATCH(bestLevel);
 	WATCH(nextBlockSeq);
 
@@ -91,7 +90,6 @@ void Miner::initialize()
 		// round mode
 		rvBlocksPerRound = cPoisson(getRNG(0), roundTime * miningRate);
 	}
-	EV << roundTime << endl;
 
 	scheduleNextMine();
 }
@@ -140,7 +138,7 @@ void Miner::handleMessage(cMessage *msg)
 		else {
 			int nBlocks;
 			if (numFixedMiners > 0) {
-				nBlocks = getIndex() < numFixedMiners? 1 : 0;
+				nBlocks = id < numFixedMiners? 1 : 0;
 			}
 			else {
 				nBlocks = int(rvBlocksPerRound.draw());
@@ -176,6 +174,6 @@ void Miner::handleMessage(cMessage *msg)
 }
 
 void Miner::finish() {
-	EV << "Node " << getIndex() << " max delay: " << delayStats.getMax() << endl;
-	EV << "Node " << getIndex() << " min delay: " << delayStats.getMin() << endl;
+	EV << "Node " << id << " max delay: " << delayStats.getMax() << endl;
+	EV << "Node " << id << " min delay: " << delayStats.getMin() << endl;
 }
