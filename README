@@ -1,14 +1,28 @@
+OMNET++ Modules for Blockchain Network Simulation
+
+Components
+==========
+
+FullNode (FullNode.ned, FullNode.cc)
+  Blockchain node capable of mining and forwarding blocks.
+
+ethp2p (ethp2p.msg)
+  P2P messages loosely based on Ethereum devp2p.
+
+scripts/randreg.py
+  Generate random regular graphs.
+
 Build
 =====
 
-opp_makemake
+opp_makemake -f
 make
 
-Options
-=======
+Misc
+====
 
-To enable logging in command line, set
+Logging in command line interface
 
-    cmdenv-express-mode = false
-
-in omnetpp.ini.
+  To enable logging in command line, set
+      cmdenv-express-mode = false
+  in omnetpp.ini.
