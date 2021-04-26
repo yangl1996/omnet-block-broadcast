@@ -74,7 +74,8 @@ Miner::~Miner()
 
 void Miner::initialize()
 {
-	id = getIndex(); // cannot be placed in the constructor because the parameter was not ready
+	id = par("id").intValue(); // cannot be placed in the constructor because the parameter was not ready
+	EV << "Node ID=" << id << endl;
 	WATCH(bestLevel);
 	WATCH(nextBlockSeq);
 
