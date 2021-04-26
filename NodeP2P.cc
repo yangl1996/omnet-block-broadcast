@@ -18,7 +18,6 @@ class NodeP2P : public cSimpleModule
 {
 	private:
 		// parameters
-		unsigned short id;          // id of the node
 		cGate* fromNode;
 		cGate* toNode;
 
@@ -124,10 +123,11 @@ void NodeP2P::handleMessage(cMessage *msg)
 
 		NewBlock *newBlock = dynamic_cast<NewBlock*>(msg);
 		if (newBlock != nullptr) {
+			long id = packBlockId(newBlock->getMiner(), newBlock->getSeq());
 			if (blocks.find(id) == blocks.end() || blocks[id] != 'a') {
 				blocks[id] = 'r';
+				send(newBlock, toNode);
 			}
-			send(newBlock, toNode);
 			return;
 		}
 	}
