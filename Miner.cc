@@ -5,15 +5,8 @@
 using namespace omnetpp;
 using namespace std;
 
-// Packs the miner ID and block sequence number into a long int
-long packBlockId(unsigned short miner, unsigned int seq) {
-	unsigned long m = (unsigned long)miner;
-	unsigned long s = (unsigned long)seq;
-	return (long)(m << (sizeof(unsigned int)* 8)) + s;
-}
-
-// FullNode is a full node in a blockchain network.
-// It supports three modes:
+// Miner implements a blockchain miner.
+// It supports three mining modes, each mimics a type of permissionless consensus protocol:
 //   Continuous mode, where blocks are mined as in PoW. Set ronudIntv and numFixedMiners
 //   to zero, and set miningRate to the desired per-node mining rate.
 //
@@ -24,7 +17,7 @@ long packBlockId(unsigned short miner, unsigned int seq) {
 //   Fixed miner mode, where the same set of miners mine one block in each round. Set
 //   numFixedMiners to the number of miners in each round, and set roundIntv to the
 //   desired round interval. Ignore the mining rate setting.
-class FullNode : public cSimpleModule
+class Miner : public cSimpleModule
 {
 	private:
 		// parameters
@@ -40,8 +33,6 @@ class FullNode : public cSimpleModule
 		cMessage *nextProcBlock;  // event when a block is processed
 		cQueue blockProcQueue;   // blocks to be processed
 		unsigned int bestLevel;       // the highest block level
-		unordered_set<long> heardBlocks; // set of blocks that are heard of
-		unordered_set<long> rcvdBlocks;  // set of blocks that have been received
 
 		// internal methods
 		void scheduleNextMine();
@@ -53,8 +44,8 @@ class FullNode : public cSimpleModule
 		// TODO: also try cPSquare
 
 	public:
-		FullNode();
-		virtual ~FullNode();
+		Miner();
+		virtual ~Miner();
 
 	protected:
 		virtual void initialize() override;
@@ -63,27 +54,25 @@ class FullNode : public cSimpleModule
 };
 
 // Register the module with omnet
-Define_Module(FullNode);
+Define_Module(Miner);
 
-FullNode::FullNode()
+Miner::Miner()
 {
 	nextMine = new cMessage("mined");
 	nextProcBlock = new cMessage("proced");
 	bestLevel = 0;
 	nextBlockSeq = 0;
 	blockProcQueue = cQueue("blockProcQueue");
-	heardBlocks = unordered_set<long>();
-	rcvdBlocks = unordered_set<long>();
 	delayStats = cHistogram("blockDelay", 200);
 }
 
-FullNode::~FullNode()
+Miner::~Miner()
 {
 	cancelAndDelete(nextMine);
 	cancelAndDelete(nextProcBlock);
 }
 
-void FullNode::initialize()
+void Miner::initialize()
 {
 	id = getIndex(); // cannot be placed in the constructor because the parameter was not ready
 	WATCH(bestLevel);
@@ -108,7 +97,7 @@ void FullNode::initialize()
 
 // Randomly samples an exponential delay and schedules the nextMine
 // event to happen after that time.
-void FullNode::scheduleNextMine() {
+void Miner::scheduleNextMine() {
 	if (roundTime == 0.0) {
 		scheduleAt(simTime()+rvBlockDelay.draw(), nextMine);
 	}
@@ -119,7 +108,7 @@ void FullNode::scheduleNextMine() {
 
 // Creates a NewBlock message with appropriate height, miner ID, and sequence number, and
 // increases the block sequence number.
-NewBlock* FullNode::mineBlock() {
+NewBlock* Miner::mineBlock() {
 	NewBlock *newBlock = new NewBlock("block");
 	newBlock->setHeight(bestLevel+1);
 	newBlock->setMiner(id);
@@ -131,37 +120,21 @@ NewBlock* FullNode::mineBlock() {
 
 // Processes a new block. Update the best height, and records the reception of the block.
 // Then announces the block to peers.
-void FullNode::procBlock(NewBlock *block) {
-	long id = packBlockId(block->getMiner(), block->getSeq());
-	// only process it if it has not been heard
-	if (rcvdBlocks.find(id) == rcvdBlocks.end()) {
-		rcvdBlocks.insert(id);
-		heardBlocks.insert(id);
-		delayStats.collect(simTime() - block->getTimeMined());
-		if (block->getHeight() > bestLevel) {
-			bestLevel = block->getHeight();
-		}
-		int n = gateSize("link");
-		// broadcast the message
-		for (int i = 0; i < n; i++) {
-			NewBlockHash* m = new NewBlockHash();
-			m->setHeight(block->getHeight());
-			m->setMiner(block->getMiner());
-			m->setSeq(block->getSeq());
-			m->setTimeMined(block->getTimeMined());
-			send(m, "link$o", i);
-		}
+void Miner::procBlock(NewBlock *block) {
+	delayStats.collect(simTime() - block->getTimeMined());
+	if (block->getHeight() > bestLevel) {
+		bestLevel = block->getHeight();
 	}
+	send(block, "p2p$o");
 }
 
-void FullNode::handleMessage(cMessage *msg)
+void Miner::handleMessage(cMessage *msg)
 {
 	if (msg == nextMine) {
 		// block mining event
 		if (roundTime == 0.0) {
 			NewBlock *newBlock = mineBlock();
 			procBlock(newBlock);	// process it locally, does not take time
-			delete newBlock;
 		}
 		else {
 			int nBlocks;
@@ -174,7 +147,6 @@ void FullNode::handleMessage(cMessage *msg)
 			for (int i = 0; i < nBlocks; i++) {
 				NewBlock *newBlock = mineBlock();
 				procBlock(newBlock);	// process it locally, does not take time
-				delete newBlock;
 			}
 		}
 		scheduleNextMine();
@@ -183,7 +155,6 @@ void FullNode::handleMessage(cMessage *msg)
 		// take the next block from the queue
 		NewBlock *newBlock = check_and_cast<NewBlock*>(blockProcQueue.pop());
 		procBlock(newBlock);
-		delete newBlock;
 		// if the queue is not empty, schedule the next processing
 		if (!blockProcQueue.isEmpty()) {
 			scheduleAt(simTime()+par("procTime").doubleValueInUnit("s"), nextProcBlock);
@@ -200,42 +171,10 @@ void FullNode::handleMessage(cMessage *msg)
 			blockProcQueue.insert(msg);
 			return;
 		}
-
-		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
-		if (newBlockHash != nullptr) {
-			long id = packBlockId(newBlockHash->getMiner(), newBlockHash->getSeq());
-			// request the block if not requested before
-			if (heardBlocks.find(id) == heardBlocks.end()) {
-				heardBlocks.insert(id);
-				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
-				// get other half because it's an inout gate
-				GetBlock *req = new GetBlock();
-				req->setHeight(newBlockHash->getHeight());
-				req->setMiner(newBlockHash->getMiner());
-				req->setSeq(newBlockHash->getSeq());
-				req->setTimeMined(newBlockHash->getTimeMined());
-				send(req, gate);
-			}
-			delete newBlockHash;	// this is a disposable message
-			return;
-		}
-
-		GetBlock *getBlock = dynamic_cast<GetBlock*>(msg);
-		if (getBlock != nullptr) {
-			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
-			NewBlock *resp = new NewBlock();
-			resp->setHeight(getBlock->getHeight());
-			resp->setMiner(getBlock->getMiner());
-			resp->setSeq(getBlock->getSeq());
-			resp->setTimeMined(getBlock->getTimeMined());
-			send(resp, gate);
-			delete getBlock;	// this is a disposable message
-			return;
-		}
 	}
 }
 
-void FullNode::finish() {
+void Miner::finish() {
 	EV << "Node " << getIndex() << " max delay: " << delayStats.getMax() << endl;
 	EV << "Node " << getIndex() << " min delay: " << delayStats.getMin() << endl;
 }

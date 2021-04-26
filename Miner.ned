@@ -1,4 +1,4 @@
-simple FullNode
+simple Miner
 {
     parameters:
         double miningRate = default(0.1);
@@ -6,6 +6,6 @@ simple FullNode
         double roundIntv @unit(s) = default(10s);
 	int numFixedMiners = default(0);
     gates:
-        inout link[];
+	inout p2p;
 }
 
