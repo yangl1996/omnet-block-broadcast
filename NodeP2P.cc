@@ -61,7 +61,7 @@ void NodeP2P::processedNewBlock(NewBlock *block) {
 	long id = packBlockId(block->getMiner(), block->getSeq());
 	// only announce it if it is not announced before
 	if (blocks.find(id) == blocks.end() || blocks[id] != 'a') {
-		int n = gateSize("link");
+		int n = gateSize("peer");
 		// broadcast the message
 		for (int i = 0; i < n; i++) {
 			NewBlockHash* m = new NewBlockHash();
@@ -69,7 +69,7 @@ void NodeP2P::processedNewBlock(NewBlock *block) {
 			m->setMiner(block->getMiner());
 			m->setSeq(block->getSeq());
 			m->setTimeMined(block->getTimeMined());
-			send(m, "link$o", i);
+			send(m, "peer$o", i);
 		}
 	}
 }

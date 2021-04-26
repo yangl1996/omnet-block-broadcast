@@ -1,7 +1,7 @@
 simple NodeP2P
 {
     gates:
-        inout link[];
+        inout peer[];
 	inout node;
 }
 
