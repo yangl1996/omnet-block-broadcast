@@ -10,7 +10,7 @@ template = """network {netName}
 {edges}}}
 """
 
-edgeTemplate = """        node[{node1}].link++ <--> {{  delay = {edgeDelay}ms; }} <--> node[{node2}].link++;
+edgeTemplate = """        node[{node1}].peer++ <--> {{  delay = {edgeDelay}ms; }} <--> node[{node2}].peer++;
 """
 
 D=4
