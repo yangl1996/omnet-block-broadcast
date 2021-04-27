@@ -1,6 +1,12 @@
 #!/usr/bin/python3
 
 import networkx
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("N", help="number of nodes", type=int)
+parser.add_argument("D", help="degree", type=int)
+args = parser.parse_args()
 
 template = """network {netName}
 {{
@@ -13,8 +19,8 @@ template = """network {netName}
 edgeTemplate = """        node[{node1}].peer++ <--> {{  delay = {edgeDelay}ms; }} <--> node[{node2}].peer++;
 """
 
-D=4
-N=1000
+D=args.D
+N=args.N
 
 graph = networkx.generators.random_graphs.random_regular_graph(D, N)
 
