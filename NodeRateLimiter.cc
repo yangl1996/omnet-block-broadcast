@@ -115,7 +115,7 @@ void NodeRateLimiter::handleMessage(cMessage *msg)
 	}
 
 	// external messages
-	cPacket *pkt = dynamic_cast<cPacket*>(pkt);
+	cPacket *pkt = dynamic_cast<cPacket*>(msg);
 	if (pkt != nullptr) {
 		if (isFromOutside(pkt)) {
 			if (incomingRate == 0.0) {
