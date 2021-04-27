@@ -10,6 +10,9 @@ Miner (Miner.ned, Miner.cc)
 NodeP2P (NodeP2P.ned, NodeP2P.cc)
   Blockchain P2P node that loosely follows the Ethereum devp2p protocol.
 
+NodeRateLimiter (NodeRateLimiter.ned, NodeRateLimiter.cc)
+  Rate limiter that enforces node capacity.
+
 FullNode (FullNode.ned)
   Blockchain full node, consists of a Miner and a NodeP2P module.
 
