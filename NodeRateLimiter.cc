@@ -28,7 +28,7 @@ class NodeRateLimiter : public cSimpleModule
 		virtual void finish() override;
 		virtual void handleMessage(cMessage *msg) override;
 		cGate* getSendGate(cMessage *msg);
-		bool fromOutside(cMessage *msg);
+		bool isFromOutside(cMessage *msg);
 };
 
 // Register the module with omnet
@@ -52,9 +52,11 @@ void NodeRateLimiter::initialize()
 {
 	innerGateStartId = gate("inner$i", 0)->getBaseId();
 	outerGateStartId = gate("outer$i", 0)->getBaseId();
+	incomingRate = par("incomingRate").doubleValueInUnit("bps");
+	outgoingRate = par("outgoingRate").doubleValueInUnit("bps");
 }
 
-bool NodeRateLimiter::fromOutside(cMessage *msg) {
+bool NodeRateLimiter::isFromOutside(cMessage *msg) {
 	cGate* fromGate = msg->getArrivalGate();
 	int baseId = fromGate->getBaseId();
 	if (baseId == innerGateStartId) {
@@ -92,9 +94,51 @@ cGate* NodeRateLimiter::getSendGate(cMessage *msg) {
 
 void NodeRateLimiter::handleMessage(cMessage *msg)
 {
+	// internal events
+	if (msg == nextSend) {
+		cPacket *toSend = check_and_cast<cPacket*>(outgoingQueue.pop());
+		send(toSend, getSendGate(toSend));
+		if (!outgoingQueue.isEmpty()) {
+			simtime_t t = ((cPacket*)outgoingQueue.front())->getBitLength() / outgoingRate;
+			scheduleAt(simTime()+t, nextSend);
+		}
+		return;
+	}
+	else if (msg == nextReceive) {
+		cPacket *toReceive = check_and_cast<cPacket*>(incomingQueue.pop());
+		send(toReceive, getSendGate(toReceive));
+		if (!incomingQueue.isEmpty()) {
+			simtime_t t = ((cPacket*)incomingQueue.front())->getBitLength() / incomingRate;
+			scheduleAt(simTime()+t, nextReceive);
+		}
+		return;
+	}
+
+	// external messages
 	cPacket *pkt = dynamic_cast<cPacket*>(pkt);
 	if (pkt != nullptr) {
-		return;
+		if (isFromOutside(pkt)) {
+			if (incomingRate == 0.0) {
+				send(pkt, getSendGate(pkt));
+				return;
+			}
+			if (incomingQueue.isEmpty()) {
+				simtime_t t = pkt->getBitLength() / incomingRate;
+				scheduleAt(simTime()+t, nextReceive);
+			}
+			incomingQueue.insert(pkt);
+		}
+		else {
+			if (outgoingRate == 0.0) {
+				send(pkt, getSendGate(pkt));
+				return;
+			}
+			if (outgoingQueue.isEmpty()) {
+				simtime_t t = pkt->getBitLength() / outgoingRate;
+				scheduleAt(simTime()+t, nextSend);
+			}
+			outgoingQueue.insert(pkt);
+		}
 	}
 	else {
 		// we only limit rate on packet types
