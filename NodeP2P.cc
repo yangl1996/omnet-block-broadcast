@@ -116,6 +116,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			resp->setMiner(getBlock->getMiner());
 			resp->setSeq(getBlock->getSeq());
 			resp->setTimeMined(getBlock->getTimeMined());
+			resp->setByteLength(2000000);
 			send(resp, gate);
 			delete getBlock;	// this is a disposable message
 			return;
