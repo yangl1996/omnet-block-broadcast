@@ -90,7 +90,7 @@ void HoneyBadger::procBlock(NewBlock *block) {
 		epochs[epoch] += 1;
 	}
 
-	if (epochs.find(nextBlockSeq) != epochs.end() && epochs[nextBlockSeq] >= numNodes) {
+	if (epochs.find(nextBlockSeq-1) != epochs.end() && epochs[nextBlockSeq-1] >= numNodes) {
 		scheduleAt(simTime(), nextMine);
 	}
 	send(block, "p2p$o");
