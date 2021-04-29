@@ -7,7 +7,7 @@ using namespace std;
 
 const int ANNOUNCED = -1;
 const int ACCEPTED = -2;
-const int TOTCHUNKS = 1;
+const int TOTCHUNKS = 100;
 
 // Packs the miner ID and block sequence number into a long int
 long packBlockId(unsigned short miner, unsigned int seq) {
