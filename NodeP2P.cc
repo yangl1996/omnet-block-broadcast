@@ -86,6 +86,14 @@ void NodeP2P::handleMessage(cMessage *msg)
 			processedNewBlock(newBlock);
 			delete newBlock;
 		}
+		else {
+			int n = gateSize("peer");
+			// broadcast the message
+			for (int i = 0; i < n; i++) {
+				send(msg->dup(), "peer$o", i);
+			}
+			delete msg;
+		}
 		return;
 	}
 	else {
@@ -146,6 +154,9 @@ void NodeP2P::handleMessage(cMessage *msg)
 			}
 			return;
 		}
+
+		// otherwise just deliver it to the node
+		send(msg, toNode);
 	}
 }
 

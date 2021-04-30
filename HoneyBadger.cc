@@ -1,6 +1,7 @@
 #include <string.h>
 #include <omnetpp.h>
 #include "p2p_m.h"
+#include "honeybadger_m.h"
 
 using namespace omnetpp;
 using namespace std;
@@ -21,13 +22,15 @@ class HoneyBadger: public cSimpleModule
 		cMessage *nextProcBlock;  // event when a block is processed
 		cQueue blockProcQueue;   // blocks to be processed
 		unordered_map<int, int> epochs;
+		simtime_t lastEpochFinish;
 
 		// internal methods
 		void procBlock(NewBlock *block);
 		NewBlock* mineBlock();
+		void confirmReception(unsigned int epoch);
 
 		// stats
-		cHistogram delayStats;	// records the block delay
+		cHistogram roundIntvStats;	// records the block delay
 		// TODO: also try cPSquare
 
 	public:
@@ -50,7 +53,8 @@ HoneyBadger::HoneyBadger()
 	nextBlockSeq = 0;
 	blockProcQueue = cQueue("blockProcQueue");
 	epochs = unordered_map<int, int>();
-	delayStats = cHistogram("blockDelay", 200);
+	roundIntvStats = cHistogram("roundInterval", 200);
+	lastEpochFinish = 0;
 }
 
 HoneyBadger::~HoneyBadger()
@@ -80,12 +84,18 @@ NewBlock* HoneyBadger::mineBlock() {
 	return newBlock;
 }
 
-// Processes a new block. Update the best height, and records the reception of the block.
-// Then announces the block to peers.
 void HoneyBadger::procBlock(NewBlock *block) {
 	Block blk = block->getBlock();
-	delayStats.collect(simTime() - blk.timeMined);
 	int epoch = blk.seq;
+	confirmReception(epoch);
+	send(block, "p2p$o");
+	GotBlock *msg = new GotBlock();
+	msg->setEpoch(epoch);
+	msg->setNode(id);
+	send(msg, "p2p$o");
+}
+
+void HoneyBadger::confirmReception(unsigned int epoch) {
 	if (epochs.find(epoch) == epochs.end()) {
 		epochs[epoch] = 1;
 	}
@@ -93,10 +103,12 @@ void HoneyBadger::procBlock(NewBlock *block) {
 		epochs[epoch] += 1;
 	}
 
-	if (epochs.find(nextBlockSeq-1) != epochs.end() && epochs[nextBlockSeq-1] >= numNodes) {
+	// note that we want to only check if epoch==nextBlockSeq-1. otherwise we risk scheduling multiple nextMine events.
+	if (epoch == nextBlockSeq-1 && epochs.find(nextBlockSeq-1) != epochs.end() && epochs[nextBlockSeq-1] >= numNodes*numNodes) {
 		scheduleAt(simTime(), nextMine);
+		roundIntvStats.collect(simTime() - lastEpochFinish);
+		lastEpochFinish = simTime();
 	}
-	send(block, "p2p$o");
 }
 
 void HoneyBadger::handleMessage(cMessage *msg)
@@ -128,10 +140,17 @@ void HoneyBadger::handleMessage(cMessage *msg)
 			blockProcQueue.insert(msg);
 			return;
 		}
+
+		GotBlock *gotBlock = dynamic_cast<GotBlock*>(msg);
+		if (gotBlock != nullptr) {
+			confirmReception(gotBlock->getEpoch());
+			delete gotBlock;
+			return;
+		}
 	}
 }
 
 void HoneyBadger::finish() {
-	EV << "Node " << id << " max delay: " << delayStats.getMax() << endl;
-	EV << "Node " << id << " min delay: " << delayStats.getMin() << endl;
+	EV << "Node " << id << " max intv: " << roundIntvStats.getMax() << endl;
+	EV << "Node " << id << " min intv: " << roundIntvStats.getMin() << endl;
 }

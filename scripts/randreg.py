@@ -5,7 +5,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("N", help="number of nodes", type=int)
 parser.add_argument("D", help="degree", type=int)
-parser.add_argument("-d", "--delay", help="one-way per-edge delay in ms", type=int, default=0)
+parser.add_argument("-d", "--delay", help="one-way per-edge delay in ms", type=float, default=0)
 parser.add_argument("--name", help="name of the network", type=str, default="RandReg")
 parser.add_argument("-m", "--module", help="module to instantiate", type=str, default="HBNode", choices=["HBNode", "LCNode"])
 args = parser.parse_args()
