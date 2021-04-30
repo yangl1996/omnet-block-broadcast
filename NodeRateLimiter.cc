@@ -4,6 +4,14 @@
 using namespace omnetpp;
 using namespace std;
 
+int compare(cObject *a, cObject *b) {
+	cMessage* m1 = dynamic_cast<cMessage*>(a);
+	cMessage* m2 = dynamic_cast<cMessage*>(b);
+	int idx1 = m1->getArrivalGate()->getIndex();
+	int idx2 = m2->getArrivalGate()->getIndex();
+	return (m1-m2);
+
+}
 
 // NodeRateLimiter imposes node capacity limits. 
 class NodeRateLimiter : public cSimpleModule
@@ -39,7 +47,7 @@ NodeRateLimiter::NodeRateLimiter()
 	nextSend = new cMessage("send");
 	nextReceive = new cMessage("receive");
 	incomingQueue = cQueue("incoming");
-	outgoingQueue = cQueue("outgoing");
+	outgoingQueue = cQueue("outgoing", compare);
 }
 
 NodeRateLimiter::~NodeRateLimiter()
