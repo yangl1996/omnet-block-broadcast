@@ -71,9 +71,11 @@ void HoneyBadger::initialize()
 // increases the block sequence number.
 NewBlock* HoneyBadger::mineBlock() {
 	NewBlock *newBlock = new NewBlock("block");
-	newBlock->setMiner(id);
-	newBlock->setSeq(nextBlockSeq);
-	newBlock->setTimeMined(simTime());
+	Block blk;
+	blk.miner = id;
+	blk.seq = nextBlockSeq;
+	blk.timeMined = simTime();
+	newBlock->setBlock(blk);
 	nextBlockSeq += 1;
 	return newBlock;
 }
@@ -81,8 +83,9 @@ NewBlock* HoneyBadger::mineBlock() {
 // Processes a new block. Update the best height, and records the reception of the block.
 // Then announces the block to peers.
 void HoneyBadger::procBlock(NewBlock *block) {
-	delayStats.collect(simTime() - block->getTimeMined());
-	int epoch = block->getSeq();
+	Block blk = block->getBlock();
+	delayStats.collect(simTime() - blk.timeMined);
+	int epoch = blk.seq;
 	if (epochs.find(epoch) == epochs.end()) {
 		epochs[epoch] = 1;
 	}

@@ -109,10 +109,12 @@ void Miner::scheduleNextMine() {
 // increases the block sequence number.
 NewBlock* Miner::mineBlock() {
 	NewBlock *newBlock = new NewBlock("block");
-	newBlock->setHeight(bestLevel+1);
-	newBlock->setMiner(id);
-	newBlock->setSeq(nextBlockSeq);
-	newBlock->setTimeMined(simTime());
+	Block blk;
+	blk.height = bestLevel+1;
+	blk.miner = id;
+	blk.seq = nextBlockSeq;
+	blk.timeMined = simTime();
+	newBlock->setBlock(blk);
 	nextBlockSeq += 1;
 	return newBlock;
 }
@@ -120,9 +122,10 @@ NewBlock* Miner::mineBlock() {
 // Processes a new block. Update the best height, and records the reception of the block.
 // Then announces the block to peers.
 void Miner::procBlock(NewBlock *block) {
-	delayStats.collect(simTime() - block->getTimeMined());
-	if (block->getHeight() > bestLevel) {
-		bestLevel = block->getHeight();
+	Block blk = block->getBlock();
+	delayStats.collect(simTime() - blk.timeMined);
+	if (blk.height > bestLevel) {
+		bestLevel = blk.height;
 	}
 	send(block, "p2p$o");
 }

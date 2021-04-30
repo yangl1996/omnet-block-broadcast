@@ -10,9 +10,9 @@ const int ACCEPTED = -2;
 const int TOTCHUNKS = 100;
 
 // Packs the miner ID and block sequence number into a long int
-long packBlockId(unsigned short miner, unsigned int seq) {
-	unsigned long m = (unsigned long)miner;
-	unsigned long s = (unsigned long)seq;
+long packBlockId(const Block block) {
+	unsigned long m = (unsigned long)block.miner;
+	unsigned long s = (unsigned long)block.seq;
 	return (long)(m << (sizeof(unsigned int)* 8)) + s;
 }
 
@@ -61,7 +61,7 @@ void NodeP2P::initialize()
 // Handle a block that is just processed by the local node. It announces the block to the peers
 // if it has not done so.
 void NodeP2P::processedNewBlock(NewBlock *block) {
-	long id = packBlockId(block->getMiner(), block->getSeq());
+	long id = packBlockId(block->getBlock());
 	// only announce it if it is not announced before
 	if (blocks.find(id) == blocks.end() || blocks[id] != ANNOUNCED) {
 		blocks[id] = ANNOUNCED;
@@ -69,10 +69,7 @@ void NodeP2P::processedNewBlock(NewBlock *block) {
 		// broadcast the message
 		for (int i = 0; i < n; i++) {
 			NewBlockHash* m = new NewBlockHash();
-			m->setHeight(block->getHeight());
-			m->setMiner(block->getMiner());
-			m->setSeq(block->getSeq());
-			m->setTimeMined(block->getTimeMined());
+			m->setBlock(block->getBlock());
 			send(m, "peer$o", i);
 		}
 	}
@@ -94,7 +91,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 		// check message type
 		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
 		if (newBlockHash != nullptr) {
-			long id = packBlockId(newBlockHash->getMiner(), newBlockHash->getSeq());
+			long id = packBlockId(newBlockHash->getBlock());
 			if (blocks.find(id) == blocks.end()) {
 				blocks[id] = 0;	// mark that we have heard the block
 			}
@@ -103,10 +100,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
 				GetBlock *req = new GetBlock();
-				req->setHeight(newBlockHash->getHeight());
-				req->setMiner(newBlockHash->getMiner());
-				req->setSeq(newBlockHash->getSeq());
-				req->setTimeMined(newBlockHash->getTimeMined());
+				req->setBlock(newBlockHash->getBlock());
 				send(req, gate);
 			}
 			delete newBlockHash;	// this is a disposable message
@@ -115,13 +109,10 @@ void NodeP2P::handleMessage(cMessage *msg)
 
 		GetBlock *getBlock = dynamic_cast<GetBlock*>(msg);
 		if (getBlock != nullptr) {
-			long id = packBlockId(getBlock->getMiner(), getBlock->getSeq());
+			long id = packBlockId(getBlock->getBlock());
 			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
 			NewBlock *resp = new NewBlock();
-			resp->setHeight(getBlock->getHeight());
-			resp->setMiner(getBlock->getMiner());
-			resp->setSeq(getBlock->getSeq());
-			resp->setTimeMined(getBlock->getTimeMined());
+			resp->setBlock(getBlock->getBlock());
 			resp->setByteLength(2000000 / TOTCHUNKS);
 			send(resp, gate);
 			delete getBlock;	// this is a disposable message
@@ -130,7 +121,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 
 		NewBlock *newBlock = dynamic_cast<NewBlock*>(msg);
 		if (newBlock != nullptr) {
-			long id = packBlockId(newBlock->getMiner(), newBlock->getSeq());
+			long id = packBlockId(newBlock->getBlock());
 			if (blocks.find(id) == blocks.end()) {
 				blocks[id] = 0;
 			}
@@ -144,10 +135,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 					cGate *gate = newBlock->getArrivalGate()->getOtherHalf();
 					// get the other half because it's an inout gate
 					GetBlock *req = new GetBlock();
-					req->setHeight(newBlock->getHeight());
-					req->setMiner(newBlock->getMiner());
-					req->setSeq(newBlock->getSeq());
-					req->setTimeMined(newBlock->getTimeMined());
+					req->setBlock(newBlock->getBlock());
 					send(req, gate);
 					delete newBlock;
 				}
