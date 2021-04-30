@@ -26,6 +26,7 @@ class NodeP2P : public cSimpleModule
 
 		// internal states
 		unordered_map<long, int> blocks; // number of chunks received of a block
+		unordered_map<long, int> requested; // number of chunks requested for a block
 		void processedNewBlock(NewBlock *block);
 		int totChunks;	// how many chunks to split the block into
 
@@ -45,6 +46,7 @@ Define_Module(NodeP2P);
 NodeP2P::NodeP2P()
 {
 	blocks = unordered_map<long, int>();
+	requested = unordered_map<long, int>();
 }
 
 NodeP2P::~NodeP2P()
@@ -104,13 +106,17 @@ void NodeP2P::handleMessage(cMessage *msg)
 			if (blocks.find(id) == blocks.end()) {
 				blocks[id] = 0;	// mark that we have heard the block
 			}
+			if (requested.find(id) == requested.end()) {
+				requested[id] = 0;
+			}
 			// request the block if not requested before
-			if (blocks[id] >= 0 && blocks[id] < totChunks) {
+			if (blocks[id] >= 0 && requested[id] < totChunks && blocks[id] < totChunks) {
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
 				GetBlock *req = new GetBlock();
 				req->setBlock(newBlockHash->getBlock());
 				send(req, gate);
+				requested[id] += 1;
 			}
 			delete newBlockHash;	// this is a disposable message
 			return;
@@ -141,11 +147,17 @@ void NodeP2P::handleMessage(cMessage *msg)
 					send(newBlock, toNode);
 				}
 				else {
-					cGate *gate = newBlock->getArrivalGate()->getOtherHalf();
-					// get the other half because it's an inout gate
-					GetBlock *req = new GetBlock();
-					req->setBlock(newBlock->getBlock());
-					send(req, gate);
+					if (requested.find(id) == requested.end()) {
+						requested[id] = 0;
+					}
+					if (requested[id] < totChunks) {
+						cGate *gate = newBlock->getArrivalGate()->getOtherHalf();
+						// get the other half because it's an inout gate
+						GetBlock *req = new GetBlock();
+						req->setBlock(newBlock->getBlock());
+						send(req, gate);
+						requested[id] += 1;
+					}
 					delete newBlock;
 				}
 			}
