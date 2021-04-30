@@ -7,7 +7,6 @@ using namespace std;
 
 const int ANNOUNCED = -1;
 const int ACCEPTED = -2;
-const int TOTCHUNKS = 100;
 
 // Packs the miner ID and block sequence number into a long int
 long packBlockId(const Block block) {
@@ -28,6 +27,7 @@ class NodeP2P : public cSimpleModule
 		// internal states
 		unordered_map<long, int> blocks; // number of chunks received of a block
 		void processedNewBlock(NewBlock *block);
+		int totChunks;	// how many chunks to split the block into
 
 	public:
 		NodeP2P();
@@ -56,6 +56,7 @@ void NodeP2P::initialize()
 {
 	fromNode = gate("node$i");
 	toNode = gate("node$o");
+	totChunks = par("totalChunks").intValue();
 }
 
 // Handle a block that is just processed by the local node. It announces the block to the peers
@@ -96,7 +97,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 				blocks[id] = 0;	// mark that we have heard the block
 			}
 			// request the block if not requested before
-			if (blocks[id] >= 0 && blocks[id] < TOTCHUNKS) {
+			if (blocks[id] >= 0 && blocks[id] < totChunks) {
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
 				GetBlock *req = new GetBlock();
@@ -113,7 +114,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
 			NewBlock *resp = new NewBlock();
 			resp->setBlock(getBlock->getBlock());
-			resp->setByteLength(2000000 / TOTCHUNKS);
+			resp->setByteLength(2000000 / totChunks);
 			send(resp, gate);
 			delete getBlock;	// this is a disposable message
 			return;
@@ -127,7 +128,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			}
 			if (blocks[id] >= 0) {
 				blocks[id] += 1;
-				if (blocks[id] >= TOTCHUNKS) {
+				if (blocks[id] >= totChunks) {
 					blocks[id] = ACCEPTED;
 					send(newBlock, toNode);
 				}
