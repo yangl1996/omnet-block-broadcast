@@ -1,6 +1,6 @@
 #include <string.h>
 #include <omnetpp.h>
-#include "ethp2p_m.h"
+#include "p2p_m.h"
 
 using namespace omnetpp;
 using namespace std;
