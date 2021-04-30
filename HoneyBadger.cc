@@ -151,6 +151,6 @@ void HoneyBadger::handleMessage(cMessage *msg)
 }
 
 void HoneyBadger::finish() {
-	EV << "Node " << id << " max intv: " << roundIntvStats.getMax() << endl;
-	EV << "Node " << id << " min intv: " << roundIntvStats.getMin() << endl;
+	EV << "Node " << id << " max=" << roundIntvStats.getMax() << ", min=" << roundIntvStats.getMin() <<
+		", mean=" << roundIntvStats.getMean() << endl;
 }
