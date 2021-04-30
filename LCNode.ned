@@ -1,11 +1,11 @@
-module FullHBNode
+module LCNode
 {
 	gates:
 		inout peer[];
 	submodules:
 		p2p: NodeP2P;
 		rl: NodeRateLimiter;
-		miner: HoneyBadger {
+		miner: LongestChain {
 			id = ancestorIndex(1);
 		}
 	connections:

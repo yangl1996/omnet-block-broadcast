@@ -7,15 +7,19 @@ parser.add_argument("N", help="number of nodes", type=int)
 parser.add_argument("D", help="degree", type=int)
 parser.add_argument("-d", "--delay", help="one-way per-edge delay in ms", type=int, default=0)
 parser.add_argument("--name", help="name of the network", type=str, default="RandReg")
+parser.add_argument("-m", "--module", help="module to instantiate", type=str, default="HBNode", choices=["HBNode", "LCNode"])
 args = parser.parse_args()
 
 # import the big library after parsing so ppl do not wait for the help message
 import networkx
 
-template = """network {netName}
+template = """// Generated with the following command:
+// {command}
+
+network {netName}
 {{
     submodules:
-        node[{numNodes}]: FullNode;
+        node[{numNodes}]: {moduleName};
     connections:
 {edges}}}
 """
@@ -29,4 +33,5 @@ edgeStr = ""
 for a, b in graph.edges():
     edgeStr += edgeTemplate.format(node1=a, node2=b, edgeDelay=args.delay)
 
-print(template.format(numNodes=args.N, edges=edgeStr, netName=args.name))
+import sys
+print(template.format(numNodes=args.N, edges=edgeStr, netName=args.name, command=' '.join(sys.argv), moduleName=args.module))

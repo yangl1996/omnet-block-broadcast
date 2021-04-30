@@ -5,24 +5,24 @@
 using namespace omnetpp;
 using namespace std;
 
-// Miner implements a blockchain miner.
+// LongestChain implements a blockchain miner.
 // It supports three mining modes, each mimics a type of permissionless consensus protocol:
-//   Continuous mode, where blocks are mined as in PoW. Set ronudIntv and numFixedMiners
+//   Continuous mode, where blocks are mined as in PoW. Set ronudIntv and numFixedLongestChains
 //   to zero, and set miningRate to the desired per-node mining rate.
 //
 //   Round-by-round mode, where blocks are mined as in PoS. Set roundIntv to the rount
 //   interval, and set miningRate to the desired per-node mining rate (blocks per
-//   second). Set numFixedMiners to zero.
+//   second). Set numFixedLongestChains to zero.
 //
 //   Fixed miner mode, where the same set of miners mine one block in each round. Set
-//   numFixedMiners to the number of miners in each round, and set roundIntv to the
+//   numFixedLongestChains to the number of miners in each round, and set roundIntv to the
 //   desired round interval. Ignore the mining rate setting.
-class Miner : public cSimpleModule
+class LongestChain: public cSimpleModule
 {
 	private:
 		// parameters
 		unsigned short id;          // id of the node
-		int numFixedMiners; // number of miners in each round; used for network experiments
+		int numFixedLongestChains; // number of miners in each round; used for network experiments
 		double roundTime; // round time (round mode), 0 for continuous time mode
 		cExponential rvBlockDelay; // block inter-arrival time (continuous time mode)
 		cPoisson rvBlocksPerRound; // blocks per round (round mode)
@@ -44,8 +44,8 @@ class Miner : public cSimpleModule
 		// TODO: also try cPSquare
 
 	public:
-		Miner();
-		virtual ~Miner();
+		LongestChain();
+		virtual ~LongestChain();
 
 	protected:
 		virtual void initialize() override;
@@ -54,9 +54,9 @@ class Miner : public cSimpleModule
 };
 
 // Register the module with omnet
-Define_Module(Miner);
+Define_Module(LongestChain);
 
-Miner::Miner()
+LongestChain::LongestChain()
 {
 	nextMine = new cMessage("mined");
 	nextProcBlock = new cMessage("proced");
@@ -66,20 +66,20 @@ Miner::Miner()
 	delayStats = cHistogram("blockDelay", 200);
 }
 
-Miner::~Miner()
+LongestChain::~LongestChain()
 {
 	cancelAndDelete(nextMine);
 	cancelAndDelete(nextProcBlock);
 }
 
-void Miner::initialize()
+void LongestChain::initialize()
 {
 	id = par("id").intValue(); // cannot be placed in the constructor because the parameter was not ready
 	WATCH(bestLevel);
 	WATCH(nextBlockSeq);
 
 	// set up mining RVs
-	numFixedMiners = par("numFixedMiners").intValue();
+	numFixedLongestChains = par("numFixedLongestChains").intValue();
 	roundTime = par("roundIntv").doubleValueInUnit("s");
 	double miningRate = par("miningRate").doubleValue(); // in blocks per second
 	if (roundTime == 0.0) {
@@ -96,7 +96,7 @@ void Miner::initialize()
 
 // Randomly samples an exponential delay and schedules the nextMine
 // event to happen after that time.
-void Miner::scheduleNextMine() {
+void LongestChain::scheduleNextMine() {
 	if (roundTime == 0.0) {
 		scheduleAt(simTime()+rvBlockDelay.draw(), nextMine);
 	}
@@ -107,7 +107,7 @@ void Miner::scheduleNextMine() {
 
 // Creates a NewBlock message with appropriate height, miner ID, and sequence number, and
 // increases the block sequence number.
-NewBlock* Miner::mineBlock() {
+NewBlock* LongestChain::mineBlock() {
 	NewBlock *newBlock = new NewBlock("block");
 	Block blk;
 	blk.height = bestLevel+1;
@@ -121,7 +121,7 @@ NewBlock* Miner::mineBlock() {
 
 // Processes a new block. Update the best height, and records the reception of the block.
 // Then announces the block to peers.
-void Miner::procBlock(NewBlock *block) {
+void LongestChain::procBlock(NewBlock *block) {
 	Block blk = block->getBlock();
 	delayStats.collect(simTime() - blk.timeMined);
 	if (blk.height > bestLevel) {
@@ -130,7 +130,7 @@ void Miner::procBlock(NewBlock *block) {
 	send(block, "p2p$o");
 }
 
-void Miner::handleMessage(cMessage *msg)
+void LongestChain::handleMessage(cMessage *msg)
 {
 	if (msg == nextMine) {
 		// block mining event
@@ -140,8 +140,8 @@ void Miner::handleMessage(cMessage *msg)
 		}
 		else {
 			int nBlocks;
-			if (numFixedMiners > 0) {
-				nBlocks = id < numFixedMiners? 1 : 0;
+			if (numFixedLongestChains > 0) {
+				nBlocks = id < numFixedLongestChains? 1 : 0;
 			}
 			else {
 				nBlocks = int(rvBlocksPerRound.draw());
@@ -176,7 +176,7 @@ void Miner::handleMessage(cMessage *msg)
 	}
 }
 
-void Miner::finish() {
+void LongestChain::finish() {
 	EV << "Node " << id << " max delay: " << delayStats.getMax() << endl;
 	EV << "Node " << id << " min delay: " << delayStats.getMin() << endl;
 }
