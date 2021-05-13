@@ -9,7 +9,7 @@ int compare(cObject *a, cObject *b) {
 	cMessage* m2 = dynamic_cast<cMessage*>(b);
 	int idx1 = m1->getArrivalGate()->getIndex();
 	int idx2 = m2->getArrivalGate()->getIndex();
-	return (m1-m2);
+	return (idx1-idx2);
 
 }
 
@@ -74,10 +74,7 @@ bool NodeRateLimiter::isFromOutside(cMessage *msg) {
 		return true;
 	}
 	else {
-		// should not happen
-		EV << "help me" << endl;
-		return false;
-		
+		throw 10;
 	}
 }
 
@@ -94,9 +91,7 @@ cGate* NodeRateLimiter::getSendGate(cMessage *msg) {
 		return gate("inner$o", gateIdx);
 	}
 	else {
-		// this really should not happen
-		EV << "help me" << endl;
-		return nullptr;
+		throw 10;
 	}
 }
 
