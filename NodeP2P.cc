@@ -1,19 +1,13 @@
 #include <string.h>
 #include <omnetpp.h>
 #include "p2p_m.h"
+#include "helpers.h"
 
 using namespace omnetpp;
 using namespace std;
 
 const int ANNOUNCED = -1;
 const int ACCEPTED = -2;
-
-// Packs the miner ID and block sequence number into a long int
-long packBlockId(const Block block) {
-	unsigned long m = (unsigned long)block.miner;
-	unsigned long s = (unsigned long)block.seq;
-	return (long)(m << (sizeof(unsigned int)* 8)) + s;
-}
 
 // NodeP2P implements the P2P event loop of a blockchain node. It loosely follows the
 // Ethereum DevP2P protocol for block broadcasting.
