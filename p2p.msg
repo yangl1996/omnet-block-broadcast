@@ -11,7 +11,7 @@ message GetBlock
 	Block block;
 };
 
-packet NewBlock
+message NewBlock
 {
 	Block block;
 };
