@@ -120,7 +120,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 		if (getBlock != nullptr) {
 			long id = packBlockId(getBlock->getBlock());
 			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
-			NewBlock *resp = new NewBlock();
+			BlockChunk *resp = new BlockChunk();
 			resp->setBlock(getBlock->getBlock());
 			resp->setByteLength(2000000 / totChunks);
 			send(resp, gate);
@@ -128,9 +128,9 @@ void NodeP2P::handleMessage(cMessage *msg)
 			return;
 		}
 
-		NewBlock *newBlock = dynamic_cast<NewBlock*>(msg);
-		if (newBlock != nullptr) {
-			long id = packBlockId(newBlock->getBlock());
+		BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
+		if (blockChunk != nullptr) {
+			long id = packBlockId(blockChunk->getBlock());
 			if (blocks.find(id) == blocks.end()) {
 				blocks[id] = 0;
 			}
@@ -138,26 +138,25 @@ void NodeP2P::handleMessage(cMessage *msg)
 				blocks[id] += 1;
 				if (blocks[id] >= totChunks) {
 					blocks[id] = ACCEPTED;
-					send(newBlock, toNode);
+					NewBlock *notification = new NewBlock();
+					notification->setBlock(blockChunk->getBlock());
+					send(notification, toNode);
 				}
 				else {
 					if (requested.find(id) == requested.end()) {
 						requested[id] = 0;
 					}
 					if (requested[id] < totChunks) {
-						cGate *gate = newBlock->getArrivalGate()->getOtherHalf();
+						cGate *gate = blockChunk->getArrivalGate()->getOtherHalf();
 						// get the other half because it's an inout gate
 						GetBlock *req = new GetBlock();
-						req->setBlock(newBlock->getBlock());
+						req->setBlock(blockChunk->getBlock());
 						send(req, gate);
 						requested[id] += 1;
 					}
-					delete newBlock;
 				}
 			}
-			else {
-				delete newBlock;
-			}
+			delete blockChunk;
 			return;
 		}
 

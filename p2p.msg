@@ -4,7 +4,7 @@ struct Block
 	unsigned short miner;
 	unsigned int seq;
 	simtime_t timeMined;
-}
+};
 
 message GetBlock
 {
@@ -14,6 +14,12 @@ message GetBlock
 packet NewBlock
 {
 	Block block;
+};
+
+packet BlockChunk
+{
+	Block block;
+	unsigned short chunkId;
 };
 
 message NewBlockHash
