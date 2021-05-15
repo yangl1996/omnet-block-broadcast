@@ -107,7 +107,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			if (blocks[id] >= 0 && requested[id] < totChunks && blocks[id] < totChunks) {
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
-				GetBlock *req = new GetBlock();
+				GetBlockChunk *req = new GetBlockChunk();
 				req->setBlock(newBlockHash->getBlock());
 				send(req, gate);
 				requested[id] += 1;
@@ -116,7 +116,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			return;
 		}
 
-		GetBlock *getBlock = dynamic_cast<GetBlock*>(msg);
+		GetBlockChunk *getBlock = dynamic_cast<GetBlockChunk*>(msg);
 		if (getBlock != nullptr) {
 			long id = packBlockId(getBlock->getBlock());
 			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
@@ -149,7 +149,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 					if (requested[id] < totChunks) {
 						cGate *gate = blockChunk->getArrivalGate()->getOtherHalf();
 						// get the other half because it's an inout gate
-						GetBlock *req = new GetBlock();
+						GetBlockChunk *req = new GetBlockChunk();
 						req->setBlock(blockChunk->getBlock());
 						send(req, gate);
 						requested[id] += 1;
