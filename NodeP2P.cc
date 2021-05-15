@@ -27,7 +27,7 @@ class NodeP2P : public cSimpleModule
 		// internal states
 		unordered_map<long, int> blocks; // number of chunks received of a block
 		unordered_map<long, int> requested; // number of chunks requested for a block
-		void processedNewBlock(NewBlock *block);
+		void maybeAnnounceNewBlock(NewBlock *block);
 		int totChunks;	// how many chunks to split the block into
 
 	public:
@@ -63,7 +63,7 @@ void NodeP2P::initialize()
 
 // Handle a block that is just processed by the local node. It announces the block to the peers
 // if it has not done so.
-void NodeP2P::processedNewBlock(NewBlock *block) {
+void NodeP2P::maybeAnnounceNewBlock(NewBlock *block) {
 	long id = packBlockId(block->getBlock());
 	// only announce it if it is not announced before
 	if (blocks.find(id) == blocks.end() || blocks[id] != ANNOUNCED) {
@@ -85,7 +85,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 		// check message type
 		NewBlock *newBlock = dynamic_cast<NewBlock*>(msg);
 		if (newBlock != nullptr) {
-			processedNewBlock(newBlock);
+			maybeAnnounceNewBlock(newBlock);
 			delete newBlock;
 		}
 		else {

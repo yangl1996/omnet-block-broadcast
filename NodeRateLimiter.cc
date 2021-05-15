@@ -9,8 +9,7 @@ int compare(cObject *a, cObject *b) {
 	cMessage* m2 = dynamic_cast<cMessage*>(b);
 	int idx1 = m1->getArrivalGate()->getIndex();
 	int idx2 = m2->getArrivalGate()->getIndex();
-	return (idx1-idx2);
-
+	return (idx2-idx1);
 }
 
 // NodeRateLimiter imposes node capacity limits. 
