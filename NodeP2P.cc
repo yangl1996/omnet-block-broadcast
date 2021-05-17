@@ -6,6 +6,12 @@
 using namespace omnetpp;
 using namespace std;
 
+enum BlockState {
+	processed,
+	downloaded,
+	learned
+};
+
 const int ANNOUNCED = -1;
 const int ACCEPTED = -2;
 
@@ -19,7 +25,8 @@ class NodeP2P : public cSimpleModule
 		cGate* toNode;
 
 		// internal states
-		unordered_map<long, int> blocks; // number of chunks received of a block
+		unordered_map<long, BlockState> blocks; // number of chunks received of a block
+		unordered_map<long, int> downloaded; // number of chunks downloaded
 		unordered_map<long, int> requested; // number of chunks requested for a block
 		void maybeAnnounceNewBlock(NewBlock *block);
 		int totChunks;	// how many chunks to split the block into
@@ -39,7 +46,8 @@ Define_Module(NodeP2P);
 
 NodeP2P::NodeP2P()
 {
-	blocks = unordered_map<long, int>();
+	blocks = unordered_map<long, BlockState>();
+	downloaded = unordered_map<long, int>();
 	requested = unordered_map<long, int>();
 }
 
@@ -60,8 +68,8 @@ void NodeP2P::initialize()
 void NodeP2P::maybeAnnounceNewBlock(NewBlock *block) {
 	long id = packBlockId(block->getBlock());
 	// only announce it if it is not announced before
-	if (blocks.find(id) == blocks.end() || blocks[id] != ANNOUNCED) {
-		blocks[id] = ANNOUNCED;
+	if (downloaded.find(id) == downloaded.end() || downloaded[id] != ANNOUNCED) {
+		downloaded[id] = ANNOUNCED;
 		int n = gateSize("peer");
 		// broadcast the message
 		for (int i = 0; i < n; i++) {
@@ -97,14 +105,14 @@ void NodeP2P::handleMessage(cMessage *msg)
 		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
 		if (newBlockHash != nullptr) {
 			long id = packBlockId(newBlockHash->getBlock());
-			if (blocks.find(id) == blocks.end()) {
-				blocks[id] = 0;	// mark that we have heard the block
+			if (downloaded.find(id) == downloaded.end()) {
+				downloaded[id] = 0;	// mark that we have heard the block
 			}
 			if (requested.find(id) == requested.end()) {
 				requested[id] = 0;
 			}
 			// request the block if not requested before
-			if (blocks[id] >= 0 && requested[id] < totChunks && blocks[id] < totChunks) {
+			if (downloaded[id] >= 0 && requested[id] < totChunks && downloaded[id] < totChunks) {
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
 				GetBlockChunk *req = new GetBlockChunk();
@@ -131,13 +139,13 @@ void NodeP2P::handleMessage(cMessage *msg)
 		BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
 		if (blockChunk != nullptr) {
 			long id = packBlockId(blockChunk->getBlock());
-			if (blocks.find(id) == blocks.end()) {
-				blocks[id] = 0;
+			if (downloaded.find(id) == downloaded.end()) {
+				downloaded[id] = 0;
 			}
-			if (blocks[id] >= 0) {
-				blocks[id] += 1;
-				if (blocks[id] >= totChunks) {
-					blocks[id] = ACCEPTED;
+			if (downloaded[id] >= 0) {
+				downloaded[id] += 1;
+				if (downloaded[id] >= totChunks) {
+					downloaded[id] = ACCEPTED;
 					NewBlock *notification = new NewBlock();
 					notification->setBlock(blockChunk->getBlock());
 					send(notification, toNode);
