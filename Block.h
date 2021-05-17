@@ -7,4 +7,6 @@ struct Block {
 	unsigned short miner;
 	unsigned int seq;
 	simtime_t timeMined;
+
+	bool operator==(const Block& other) const;
 };
