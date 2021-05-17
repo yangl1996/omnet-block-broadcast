@@ -1,7 +1,6 @@
 #include <string.h>
 #include <omnetpp.h>
 #include "p2p_m.h"
-#include "helpers.h"
 
 using namespace omnetpp;
 using namespace std;
@@ -66,7 +65,7 @@ void NodeP2P::initialize()
 // Handle a block that is just processed by the local node. It announces the block to the peers
 // if it has not done so.
 void NodeP2P::maybeAnnounceNewBlock(NewBlock *block) {
-	long id = packBlockId(block->getBlock());
+	long id = block->getBlock().id();
 	// only announce it if it is not announced before
 	if (downloaded.find(id) == downloaded.end() || downloaded[id] != ANNOUNCED) {
 		downloaded[id] = ANNOUNCED;
@@ -104,7 +103,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 		// check message type
 		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
 		if (newBlockHash != nullptr) {
-			long id = packBlockId(newBlockHash->getBlock());
+			long id = newBlockHash->getBlock().id();
 			if (downloaded.find(id) == downloaded.end()) {
 				downloaded[id] = 0;	// mark that we have heard the block
 			}
@@ -126,7 +125,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 
 		GetBlockChunk *getBlock = dynamic_cast<GetBlockChunk*>(msg);
 		if (getBlock != nullptr) {
-			long id = packBlockId(getBlock->getBlock());
+			long id = getBlock->getBlock().id();
 			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
 			BlockChunk *resp = new BlockChunk();
 			resp->setBlock(getBlock->getBlock());
@@ -138,7 +137,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 
 		BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
 		if (blockChunk != nullptr) {
-			long id = packBlockId(blockChunk->getBlock());
+			long id = blockChunk->getBlock().id();
 			if (downloaded.find(id) == downloaded.end()) {
 				downloaded[id] = 0;
 			}

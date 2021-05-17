@@ -11,3 +11,9 @@ bool Block::operator==(const Block& other) const {
 		return false;
 	}
 }
+
+long Block::id() const {
+	unsigned long m = (unsigned long)this->miner;
+	unsigned long s = (unsigned long)this->seq;
+	return (long)(m << (sizeof(unsigned int)* 8)) + s;
+}

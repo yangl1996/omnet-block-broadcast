@@ -9,4 +9,5 @@ struct Block {
 	simtime_t timeMined;
 
 	bool operator==(const Block& other) const;
+	long id() const;
 };
