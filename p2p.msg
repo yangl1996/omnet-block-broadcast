@@ -1,10 +1,10 @@
-struct Block
-{
-	unsigned int height;
-	unsigned short miner;
-	unsigned int seq;
-	simtime_t timeMined;
-};
+cplusplus {{
+#include "Block.h"
+}}
+
+struct Block {
+	@existingClass;
+}
 
 // Used to pass new blocks received from the P2P layer to the miner, or
 // validated blocks from the miner to the P2P layer.
