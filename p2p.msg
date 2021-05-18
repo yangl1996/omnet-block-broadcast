@@ -1,8 +1,14 @@
 cplusplus {{
 #include "Block.h"
+#include <bitset>
+typedef std::bitset<30> ChunkMap;
 }}
 
 struct Block {
+	@existingClass;
+}
+
+class ChunkMap {
 	@existingClass;
 }
 
@@ -32,3 +38,11 @@ message NewBlockHash
 {
 	Block block;
 };
+
+// Exchange the local availability of a block.
+message BlockAvailability
+{
+	Block block;
+	ChunkMap chunks;
+	@descriptor(false);	// c++ compiler complains
+}

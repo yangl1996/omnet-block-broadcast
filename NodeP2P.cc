@@ -1,5 +1,4 @@
 #include <string.h>
-#include <bitset>
 #include <omnetpp.h>
 #include "NodeRateLimiter.h"
 #include "p2p_m.h"
@@ -18,11 +17,16 @@ enum BlockState {
 
 // BlockMeta gathers the p2p layer information of a block.
 struct BlockMeta {
-       BlockState state;
-       bitset<NUM_CHUNKS> downloaded;
-       bitset<NUM_CHUNKS> requested;
+       BlockState state;		// local processing state
+       ChunkMap downloaded;	// chunks that we have finished downloading
+       ChunkMap requested;	// chunks that we have requested
+       unordered_map<unsigned short, ChunkMap> peerPendingReq;	// requests from peers that we have not fulfilled
 
-       BlockMeta() : state(learned), downloaded(bitset<NUM_CHUNKS>()), requested(bitset<NUM_CHUNKS>()) {}
+       BlockMeta(): state(learned),
+	downloaded(ChunkMap()),
+	requested(ChunkMap()),
+	peerPendingReq(unordered_map<unsigned short, ChunkMap>()) {}
+	
 };
 
 // NodeP2P implements the P2P layer of a blockchain node.
@@ -186,5 +190,4 @@ void NodeP2P::handleMessage(cMessage *msg)
 }
 
 void NodeP2P::finish() {
-	// nothing to do here
 }
