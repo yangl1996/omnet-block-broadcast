@@ -11,3 +11,12 @@ struct Block {
 	bool operator==(const Block& other) const;
 	long id() const;
 };
+
+namespace std {
+	template <> struct hash<Block> {
+		std::size_t operator()(const Block& k) const {
+			return hash<long>()(k.id());
+		}
+	};
+
+}

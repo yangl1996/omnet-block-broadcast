@@ -24,7 +24,7 @@ class NodeP2P : public cSimpleModule
 		cGate* toNode;
 
 		// internal states
-		unordered_map<long, BlockState> blocks; // number of chunks received of a block
+		unordered_map<Block, BlockState> blocks; // number of chunks received of a block
 		unordered_map<long, int> downloaded; // number of chunks downloaded
 		unordered_map<long, int> requested; // number of chunks requested for a block
 		void maybeAnnounceNewBlock(NewBlock *block);
@@ -45,7 +45,7 @@ Define_Module(NodeP2P);
 
 NodeP2P::NodeP2P()
 {
-	blocks = unordered_map<long, BlockState>();
+	blocks = unordered_map<Block, BlockState>();
 	downloaded = unordered_map<long, int>();
 	requested = unordered_map<long, int>();
 }
