@@ -1,6 +1,7 @@
 #include <string.h>
 #include <bitset>
 #include <omnetpp.h>
+#include "NodeRateLimiter.h"
 #include "p2p_m.h"
 
 using namespace omnetpp;
@@ -31,6 +32,9 @@ class NodeP2P : public cSimpleModule
 		// special gates to and from the node (consensus logic)
 		cGate* fromNode;
 		cGate* toNode;
+		
+		// network layer
+		NodeRateLimiter* rateLimiter;	// per-node rate limiter (to query queue length)
 
 		// protocol states
 		unordered_map<Block, BlockMeta> blocks; // per-block protocol state
