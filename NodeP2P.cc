@@ -1,9 +1,12 @@
 #include <string.h>
+#include <bitset>
 #include <omnetpp.h>
 #include "p2p_m.h"
 
 using namespace omnetpp;
 using namespace std;
+
+const int NUM_CHUNKS = 30;
 
 enum BlockState {
 	processed,
@@ -13,10 +16,10 @@ enum BlockState {
 
 struct BlockMeta {
 	BlockState state;
-	unsigned int downloaded;
-	unsigned int requested;
+	bitset<NUM_CHUNKS> downloaded;
+	bitset<NUM_CHUNKS> requested;
 
-	BlockMeta() : state(learned), downloaded(0), requested(0) {}
+	BlockMeta() : state(learned), downloaded(bitset<NUM_CHUNKS>()), requested(bitset<NUM_CHUNKS>()) {}
 };
 
 // NodeP2P implements the P2P event loop of a blockchain node. It loosely follows the
@@ -30,8 +33,11 @@ class NodeP2P : public cSimpleModule
 
 		// internal states
 		unordered_map<Block, BlockMeta> blocks; // block and its metadata
-		void maybeAnnounceNewBlock(NewBlock *block);
 		int totChunks;	// how many chunks to split the block into
+
+		// helper methods
+		void maybeAnnounceNewBlock(NewBlock *block);
+		unsigned short nextChunkToRequest(Block block) const;
 
 	public:
 		NodeP2P();
@@ -61,6 +67,17 @@ void NodeP2P::initialize()
 	fromNode = gate("node$i");
 	toNode = gate("node$o");
 	totChunks = par("totalChunks").intValue();
+}
+
+unsigned short NodeP2P::nextChunkToRequest(Block block) const {
+	BlockMeta m = blocks.at(block);
+	unsigned short idx;
+	for (idx = 0; idx < NUM_CHUNKS; idx++) {
+		if (!m.requested[idx]) {
+			break;
+		}
+	}
+	return idx;
 }
 
 // Handle a block that is just processed by the local node. It announces the block to the peers
@@ -107,14 +124,16 @@ void NodeP2P::handleMessage(cMessage *msg)
 			Block b = newBlockHash->getBlock();
 			// request the block if not requested before
 			if (blocks[b].state == learned &&
-					blocks[b].requested < totChunks &&
-					blocks[b].downloaded < totChunks) {
+					blocks[b].requested.count() < totChunks &&
+					blocks[b].downloaded.count() < totChunks) {
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
 				GetBlockChunk *req = new GetBlockChunk();
 				req->setBlock(newBlockHash->getBlock());
+				unsigned short idx = nextChunkToRequest(newBlockHash->getBlock());
+				req->setChunkId(idx);
 				send(req, gate);
-				blocks[b].requested += 1;
+				blocks[b].requested[idx] = 1;
 			}
 			delete newBlockHash;	// this is a disposable message
 			return;
@@ -125,6 +144,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
 			BlockChunk *resp = new BlockChunk();
 			resp->setBlock(getBlock->getBlock());
+			resp->setChunkId(getBlock->getChunkId());
 			resp->setByteLength(2000000 / totChunks);
 			send(resp, gate);
 			delete getBlock;	// this is a disposable message
@@ -134,24 +154,24 @@ void NodeP2P::handleMessage(cMessage *msg)
 		BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
 		if (blockChunk != nullptr) {
 			Block b = blockChunk->getBlock();
-			if (blocks[b].downloaded < totChunks) {
-				blocks[b].downloaded += 1;
-				if (blocks[b].downloaded >= totChunks) {
-					if (blocks[b].state == learned) {
-						blocks[b].state = received;
-					}
+			blocks[b].downloaded[blockChunk->getChunkId()] = 1;
+			if (blocks[b].downloaded.count() >= totChunks) {
+				if (blocks[b].state == learned) {
+					blocks[b].state = received;
 					NewBlock *notification = new NewBlock();
 					notification->setBlock(blockChunk->getBlock());
 					send(notification, toNode);
 				}
-				else if (blocks[b].requested < totChunks) {
-					cGate *gate = blockChunk->getArrivalGate()->getOtherHalf();
-					// get the other half because it's an inout gate
-					GetBlockChunk *req = new GetBlockChunk();
-					req->setBlock(blockChunk->getBlock());
-					send(req, gate);
-					blocks[b].requested += 1;
-				}
+			}
+			else if (blocks[b].requested.count() < totChunks) {
+				cGate *gate = blockChunk->getArrivalGate()->getOtherHalf();
+				// get the other half because it's an inout gate
+				GetBlockChunk *req = new GetBlockChunk();
+				unsigned int idx = nextChunkToRequest(b);
+				req->setBlock(blockChunk->getBlock());
+				req->setChunkId(idx);
+				send(req, gate);
+				blocks[b].requested[idx] = 1;
 			}
 			delete blockChunk;
 			return;

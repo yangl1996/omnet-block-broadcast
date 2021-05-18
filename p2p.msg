@@ -17,6 +17,7 @@ message NewBlock
 message GetBlockChunk
 {
 	Block block;
+	unsigned short chunkId;
 };
 
 // Response to a request for block chunk.
