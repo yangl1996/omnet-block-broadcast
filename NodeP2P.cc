@@ -69,6 +69,7 @@ void NodeP2P::initialize()
 {
 	fromNode = gate("node$i");
 	toNode = gate("node$o");
+	rateLimiter = dynamic_cast<NodeRateLimiter*>(getParentModule()->getSubmodule("rl"));
 }
 
 unsigned short NodeP2P::nextChunkToRequest(Block block) const {
