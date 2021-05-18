@@ -7,7 +7,7 @@ using namespace std;
 
 enum BlockState {
 	processed,
-	downloaded,
+	received,
 	learned
 };
 
@@ -66,10 +66,9 @@ void NodeP2P::initialize()
 // if it has not done so.
 void NodeP2P::maybeAnnounceNewBlock(NewBlock *block) {
 	Block b = block->getBlock();
-	long id = block->getBlock().id();
 	// only announce it if it is not announced before
-	if (downloaded.find(b) == downloaded.end() || downloaded[b] != ANNOUNCED) {
-		downloaded[b] = ANNOUNCED;
+	if (blocks.find(b) == blocks.end() || blocks[b] != processed) {
+		blocks[b] = processed;
 		int n = gateSize("peer");
 		// broadcast the message
 		for (int i = 0; i < n; i++) {
@@ -105,15 +104,17 @@ void NodeP2P::handleMessage(cMessage *msg)
 		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
 		if (newBlockHash != nullptr) {
 			Block b = newBlockHash->getBlock();
-			long id = newBlockHash->getBlock().id();
+			if (blocks.find(b) == blocks.end()) {
+				blocks[b] = learned;	// mark that we have heard the block
+			}
 			if (downloaded.find(b) == downloaded.end()) {
-				downloaded[b] = 0;	// mark that we have heard the block
+				downloaded[b] = 0;
 			}
 			if (requested.find(b) == requested.end()) {
 				requested[b] = 0;
 			}
 			// request the block if not requested before
-			if (downloaded[b] >= 0 && requested[b] < totChunks && downloaded[b] < totChunks) {
+			if (blocks[b] == learned && requested[b] < totChunks && downloaded[b] < totChunks) {
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
 				GetBlockChunk *req = new GetBlockChunk();
@@ -138,31 +139,33 @@ void NodeP2P::handleMessage(cMessage *msg)
 
 		BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
 		if (blockChunk != nullptr) {
-			long id = blockChunk->getBlock().id();
 			Block b = blockChunk->getBlock();
+			if (blocks.find(b) == blocks.end()) {
+				blocks[b] = learned;
+			}
 			if (downloaded.find(b) == downloaded.end()) {
 				downloaded[b] = 0;
 			}
-			if (downloaded[b] >= 0) {
+			if (requested.find(b) == requested.end()) {
+				requested[b] = 0;
+			}
+			if (downloaded[b] < totChunks) {
 				downloaded[b] += 1;
 				if (downloaded[b] >= totChunks) {
-					downloaded[b] = ACCEPTED;
+					if (blocks[b] == learned) {
+						blocks[b] = received;
+					}
 					NewBlock *notification = new NewBlock();
 					notification->setBlock(blockChunk->getBlock());
 					send(notification, toNode);
 				}
-				else {
-					if (requested.find(b) == requested.end()) {
-						requested[b] = 0;
-					}
-					if (requested[b] < totChunks) {
+				else if (requested[b] < totChunks) {
 						cGate *gate = blockChunk->getArrivalGate()->getOtherHalf();
 						// get the other half because it's an inout gate
 						GetBlockChunk *req = new GetBlockChunk();
 						req->setBlock(blockChunk->getBlock());
 						send(req, gate);
 						requested[b] += 1;
-					}
 				}
 			}
 			delete blockChunk;
