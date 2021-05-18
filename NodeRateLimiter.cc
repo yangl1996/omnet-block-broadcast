@@ -29,6 +29,7 @@ class NodeRateLimiter : public cSimpleModule
 	public:
 		NodeRateLimiter();
 		virtual ~NodeRateLimiter();
+		int outQueueLength() const;
 
 	protected:
 		virtual void initialize() override;
@@ -53,6 +54,10 @@ NodeRateLimiter::~NodeRateLimiter()
 {
 	cancelAndDelete(nextSend);
 	cancelAndDelete(nextReceive);
+}
+
+int NodeRateLimiter::outQueueLength() const {
+	return outgoingQueue.getLength();
 }
 
 void NodeRateLimiter::initialize()

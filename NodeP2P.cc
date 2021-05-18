@@ -8,32 +8,32 @@ using namespace std;
 
 const int NUM_CHUNKS = 30;
 
+// BlockState is the processing state of a block.
 enum BlockState {
-	processed,
-	received,
-	learned
+	processed,	// processed locally and announced to peeers
+	received,	// downloaded locally, but not processed or announced
+	learned		// learned the existence of the block, but not downloaded
 };
 
+// BlockMeta gathers the p2p layer information of a block.
 struct BlockMeta {
-	BlockState state;
-	bitset<NUM_CHUNKS> downloaded;
-	bitset<NUM_CHUNKS> requested;
+       BlockState state;
+       bitset<NUM_CHUNKS> downloaded;
+       bitset<NUM_CHUNKS> requested;
 
-	BlockMeta() : state(learned), downloaded(bitset<NUM_CHUNKS>()), requested(bitset<NUM_CHUNKS>()) {}
+       BlockMeta() : state(learned), downloaded(bitset<NUM_CHUNKS>()), requested(bitset<NUM_CHUNKS>()) {}
 };
 
-// NodeP2P implements the P2P event loop of a blockchain node. It loosely follows the
-// Ethereum DevP2P protocol for block broadcasting.
+// NodeP2P implements the P2P layer of a blockchain node.
 class NodeP2P : public cSimpleModule
 {
 	private:
-		// parameters
+		// special gates to and from the node (consensus logic)
 		cGate* fromNode;
 		cGate* toNode;
 
-		// internal states
-		unordered_map<Block, BlockMeta> blocks; // block and its metadata
-		int totChunks;	// how many chunks to split the block into
+		// protocol states
+		unordered_map<Block, BlockMeta> blocks; // per-block protocol state
 
 		// helper methods
 		void maybeAnnounceNewBlock(NewBlock *block);
@@ -49,8 +49,7 @@ class NodeP2P : public cSimpleModule
 		virtual void handleMessage(cMessage *msg) override;
 };
 
-// Register the module with omnet
-Define_Module(NodeP2P);
+Define_Module(NodeP2P);	// register the module with OMNET++
 
 NodeP2P::NodeP2P()
 {
@@ -66,7 +65,6 @@ void NodeP2P::initialize()
 {
 	fromNode = gate("node$i");
 	toNode = gate("node$o");
-	totChunks = par("totalChunks").intValue();
 }
 
 unsigned short NodeP2P::nextChunkToRequest(Block block) const {
@@ -124,8 +122,8 @@ void NodeP2P::handleMessage(cMessage *msg)
 			Block b = newBlockHash->getBlock();
 			// request the block if not requested before
 			if (blocks[b].state == learned &&
-					blocks[b].requested.count() < totChunks &&
-					blocks[b].downloaded.count() < totChunks) {
+					blocks[b].requested.count() < NUM_CHUNKS &&
+					blocks[b].downloaded.count() < NUM_CHUNKS) {
 				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
 				GetBlockChunk *req = new GetBlockChunk();
@@ -145,7 +143,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			BlockChunk *resp = new BlockChunk();
 			resp->setBlock(getBlock->getBlock());
 			resp->setChunkId(getBlock->getChunkId());
-			resp->setByteLength(2000000 / totChunks);
+			resp->setByteLength(2000000 / NUM_CHUNKS);
 			send(resp, gate);
 			delete getBlock;	// this is a disposable message
 			return;
@@ -155,7 +153,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 		if (blockChunk != nullptr) {
 			Block b = blockChunk->getBlock();
 			blocks[b].downloaded[blockChunk->getChunkId()] = 1;
-			if (blocks[b].downloaded.count() >= totChunks) {
+			if (blocks[b].downloaded.count() >= NUM_CHUNKS) {
 				if (blocks[b].state == learned) {
 					blocks[b].state = received;
 					NewBlock *notification = new NewBlock();
@@ -163,7 +161,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 					send(notification, toNode);
 				}
 			}
-			else if (blocks[b].requested.count() < totChunks) {
+			else if (blocks[b].requested.count() < NUM_CHUNKS) {
 				cGate *gate = blockChunk->getArrivalGate()->getOtherHalf();
 				// get the other half because it's an inout gate
 				GetBlockChunk *req = new GetBlockChunk();
