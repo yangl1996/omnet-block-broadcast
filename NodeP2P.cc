@@ -47,7 +47,6 @@ class NodeP2P : public cSimpleModule
 		unordered_map<Block, BlockMeta> blocks; // per-block protocol state
 
 		// helper methods
-		void maybeAnnounceNewBlock(NewBlock *block);
 		void notifyPeersOfAvailability(Block block);
 
 	public:
@@ -79,18 +78,6 @@ void NodeP2P::initialize()
 	rateLimiter = dynamic_cast<NodeRateLimiter*>(getParentModule()->getSubmodule("rl"));
 }
 
-// Handle a block that is just processed by the local node. It announces the block to the peers
-// if it has not done so.
-void NodeP2P::maybeAnnounceNewBlock(NewBlock *block) {
-	Block b = block->getBlock();
-	// only announce it if it is not announced before
-	if (blocks[b].state != processed) {
-		blocks[b].state = processed;
-		blocks[b].downloaded.set();
-		notifyPeersOfAvailability(b);
-	}
-}
-
 void NodeP2P::notifyPeersOfAvailability(Block block) {
 	int n = gateSize("peer");
 	// broadcast the message
@@ -109,7 +96,9 @@ void NodeP2P::handleMessage(cMessage *msg)
 		// check message type
 		NewBlock *newBlock = dynamic_cast<NewBlock*>(msg);
 		if (newBlock != nullptr) {
-			maybeAnnounceNewBlock(newBlock);
+			Block b = newBlock->getBlock();
+			blocks[b].state = processed;
+			blocks[b].downloaded.set();
 			delete newBlock;
 		}
 		else {
@@ -140,8 +129,8 @@ void NodeP2P::handleMessage(cMessage *msg)
 					m->getChunksForUpdate().set();	// set all bits
 					send(m, "peer$o", i);
 				}
+				blocks[b].requested.set();
 			}
-			
 			delete blockAvail;	// this is a disposable message
 			return;
 		}
@@ -149,16 +138,28 @@ void NodeP2P::handleMessage(cMessage *msg)
 		BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
 		if (blockChunk != nullptr) {
 			Block b = blockChunk->getBlock();
-			blocks[b].downloaded[blockChunk->getChunkId()] = 1;
-			if (blocks[b].downloaded.count() >= NUM_CHUNKS) {
-				if (blocks[b].state == learned) {
-					blocks[b].state = received;
-					NewBlock *notification = new NewBlock();
-					notification->setBlock(blockChunk->getBlock());
-					send(notification, toNode);
+			if (blocks[b].downloaded[blockChunk->getChunkId()] == false) {
+				blocks[b].downloaded[blockChunk->getChunkId()] = 1;
+				notifyPeersOfAvailability(b);
+				if (blocks[b].downloaded.count() >= NUM_CHUNKS) {
+					if (blocks[b].state == learned) {
+						blocks[b].state = received;
+						NewBlock *notification = new NewBlock();
+						notification->setBlock(blockChunk->getBlock());
+						send(notification, toNode);
+					}
 				}
 			}
 			delete blockChunk;
+			return;
+		}
+
+		GetBlockChunks *getChunks = dynamic_cast<GetBlockChunks*>(msg);
+		if (getChunks != nullptr) {
+			Block b = getChunks->getBlock();
+			unsigned short peerIdx = blockAvail->getArrivalGate()->getIndex();
+			blocks[b].peerReq[peerIdx] |=  getChunks->getChunks();
+			delete getChunks;
 			return;
 		}
 
