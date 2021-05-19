@@ -18,14 +18,12 @@ enum BlockState {
 // BlockMeta gathers the p2p layer information of a block.
 struct BlockMeta {
        BlockState state;		// local processing state
-       ChunkMap downloaded;	// chunks that we have finished downloading
-       ChunkMap requested;	// chunks that we have requested
-       unordered_map<unsigned short, ChunkMap> peerPendingReq;	// requests from peers that we have not fulfilled
+       ChunkMap downloaded;		// chunks that we have finished downloading
+       unordered_map<unsigned short, ChunkMap> peerAvail;	// peers' possession of chunks
 
        BlockMeta(): state(learned),
 	downloaded(ChunkMap()),
-	requested(ChunkMap()),
-	peerPendingReq(unordered_map<unsigned short, ChunkMap>()) {}
+	peerAvail(unordered_map<unsigned short, ChunkMap>()) {}
 	
 };
 
@@ -45,7 +43,7 @@ class NodeP2P : public cSimpleModule
 
 		// helper methods
 		void maybeAnnounceNewBlock(NewBlock *block);
-		unsigned short nextChunkToRequest(Block block) const;
+		void notifyPeersOfAvailability(Block block);
 
 	public:
 		NodeP2P();
@@ -76,17 +74,6 @@ void NodeP2P::initialize()
 	rateLimiter = dynamic_cast<NodeRateLimiter*>(getParentModule()->getSubmodule("rl"));
 }
 
-unsigned short NodeP2P::nextChunkToRequest(Block block) const {
-	BlockMeta m = blocks.at(block);
-	unsigned short idx;
-	for (idx = 0; idx < NUM_CHUNKS; idx++) {
-		if (!m.requested[idx]) {
-			break;
-		}
-	}
-	return idx;
-}
-
 // Handle a block that is just processed by the local node. It announces the block to the peers
 // if it has not done so.
 void NodeP2P::maybeAnnounceNewBlock(NewBlock *block) {
@@ -94,13 +81,19 @@ void NodeP2P::maybeAnnounceNewBlock(NewBlock *block) {
 	// only announce it if it is not announced before
 	if (blocks[b].state != processed) {
 		blocks[b].state = processed;
-		int n = gateSize("peer");
-		// broadcast the message
-		for (int i = 0; i < n; i++) {
-			NewBlockHash* m = new NewBlockHash();
-			m->setBlock(block->getBlock());
-			send(m, "peer$o", i);
-		}
+		blocks[b].downloaded.set();
+		notifyPeersOfAvailability(b);
+	}
+}
+
+void NodeP2P::notifyPeersOfAvailability(Block block) {
+	int n = gateSize("peer");
+	// broadcast the message
+	for (int i = 0; i < n; i++) {
+		BlockAvailability* m = new BlockAvailability();
+		m->setBlock(block);
+		m->setChunks(blocks[block].downloaded);
+		send(m, "peer$o", i);
 	}
 }
 
@@ -126,35 +119,12 @@ void NodeP2P::handleMessage(cMessage *msg)
 	}
 	else {
 		// check message type
-		NewBlockHash *newBlockHash = dynamic_cast<NewBlockHash*>(msg);
-		if (newBlockHash != nullptr) {
-			Block b = newBlockHash->getBlock();
-			// request the block if not requested before
-			if (blocks[b].state == learned &&
-					blocks[b].requested.count() < NUM_CHUNKS &&
-					blocks[b].downloaded.count() < NUM_CHUNKS) {
-				cGate *gate = newBlockHash->getArrivalGate()->getOtherHalf();
-				// get the other half because it's an inout gate
-				GetBlockChunk *req = new GetBlockChunk();
-				req->setBlock(newBlockHash->getBlock());
-				unsigned short idx = nextChunkToRequest(newBlockHash->getBlock());
-				req->setChunkId(idx);
-				send(req, gate);
-				blocks[b].requested[idx] = 1;
-			}
-			delete newBlockHash;	// this is a disposable message
-			return;
-		}
-
-		GetBlockChunk *getBlock = dynamic_cast<GetBlockChunk*>(msg);
-		if (getBlock != nullptr) {
-			cGate *gate = getBlock->getArrivalGate()->getOtherHalf();
-			BlockChunk *resp = new BlockChunk();
-			resp->setBlock(getBlock->getBlock());
-			resp->setChunkId(getBlock->getChunkId());
-			resp->setByteLength(2000000 / NUM_CHUNKS);
-			send(resp, gate);
-			delete getBlock;	// this is a disposable message
+		BlockAvailability *blockAvail = dynamic_cast<BlockAvailability*>(msg);
+		if (blockAvail != nullptr) {
+			Block b = blockAvail->getBlock();
+			unsigned short peerIdx = blockAvail->getArrivalGate()->getIndex();
+			// TODO: do something here now that peer has updates its availability
+			delete blockAvail;	// this is a disposable message
 			return;
 		}
 
@@ -169,16 +139,6 @@ void NodeP2P::handleMessage(cMessage *msg)
 					notification->setBlock(blockChunk->getBlock());
 					send(notification, toNode);
 				}
-			}
-			else if (blocks[b].requested.count() < NUM_CHUNKS) {
-				cGate *gate = blockChunk->getArrivalGate()->getOtherHalf();
-				// get the other half because it's an inout gate
-				GetBlockChunk *req = new GetBlockChunk();
-				unsigned int idx = nextChunkToRequest(b);
-				req->setBlock(blockChunk->getBlock());
-				req->setChunkId(idx);
-				send(req, gate);
-				blocks[b].requested[idx] = 1;
 			}
 			delete blockChunk;
 			return;
