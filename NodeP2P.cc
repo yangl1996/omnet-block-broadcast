@@ -99,6 +99,8 @@ void NodeP2P::handleMessage(cMessage *msg)
 			Block b = newBlock->getBlock();
 			blocks[b].state = processed;
 			blocks[b].downloaded.set();
+			blocks[b].requested.set();
+			notifyPeersOfAvailability(b);
 			delete newBlock;
 		}
 		else {
