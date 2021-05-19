@@ -19,11 +19,16 @@ enum BlockState {
 struct BlockMeta {
        BlockState state;		// local processing state
        ChunkMap downloaded;		// chunks that we have finished downloading
+       ChunkMap requested;		// chunks for which we have broadcast our request
        unordered_map<unsigned short, ChunkMap> peerAvail;	// peers' possession of chunks
+       unordered_map<unsigned short, ChunkMap> peerReq;		// peers' request for chunks
 
        BlockMeta(): state(learned),
 	downloaded(ChunkMap()),
-	peerAvail(unordered_map<unsigned short, ChunkMap>()) {}
+	requested(ChunkMap()),
+	peerAvail(unordered_map<unsigned short, ChunkMap>()),
+	peerReq(unordered_map<unsigned short, ChunkMap>())
+	{}
 	
 };
 
@@ -124,7 +129,19 @@ void NodeP2P::handleMessage(cMessage *msg)
 			Block b = blockAvail->getBlock();
 			unsigned short peerIdx = blockAvail->getArrivalGate()->getIndex();
 			blocks[b].peerAvail[peerIdx] = blockAvail->getChunks();
-			// TODO: do something here now that peer has updated its availability
+			// TODO: for now we assume everyone wants the full block
+			// broadcast our request for the whole block if not done so
+			if (blocks[b].requested.count() == 0) {
+				int n = gateSize("peer");
+				// broadcast the message
+				for (int i = 0; i < n; i++) {
+					GetBlockChunks* m = new GetBlockChunks();
+					m->setBlock(b);
+					m->getChunksForUpdate().set();	// set all bits
+					send(m, "peer$o", i);
+				}
+			}
+			
 			delete blockAvail;	// this is a disposable message
 			return;
 		}
