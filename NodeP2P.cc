@@ -159,7 +159,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 		GetBlockChunks *getChunks = dynamic_cast<GetBlockChunks*>(msg);
 		if (getChunks != nullptr) {
 			Block b = getChunks->getBlock();
-			unsigned short peerIdx = blockAvail->getArrivalGate()->getIndex();
+			unsigned short peerIdx = getChunks->getArrivalGate()->getIndex();
 			blocks[b].peerReq[peerIdx] |=  getChunks->getChunks();
 			delete getChunks;
 			return;
