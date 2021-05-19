@@ -13,28 +13,9 @@ class ChunkMap {
 }
 
 // Used to pass new blocks received from the P2P layer to the miner, or
-// validated blocks from the miner to the P2P layer.
+// validated blocks from the miner to the P2P layer. Not for use between
+// peers.
 message NewBlock
-{
-	Block block;
-};
-
-// Request block chunk from a peer.
-message GetBlockChunk
-{
-	Block block;
-	unsigned short chunkId;
-};
-
-// Response to a request for block chunk.
-packet BlockChunk
-{
-	Block block;
-	unsigned short chunkId;
-};
-
-// Announce the availability of a block.
-message NewBlockHash
 {
 	Block block;
 };
@@ -44,5 +25,21 @@ message BlockAvailability
 {
 	Block block;
 	ChunkMap chunks;
-	@descriptor(false);	// c++ compiler complains
+	@descriptor(false);	// c++ compiler complains otherwise
 }
+
+// Request block chunks from a peer.
+message GetBlockChunks
+{
+	Block block;
+	ChunkMap chunks;
+	@descriptor(false);	// c++ compiler complains otherwise
+};
+
+// Response to a request for block chunk.
+packet BlockChunk
+{
+	Block block;
+	unsigned short chunkId;
+};
+

@@ -123,7 +123,8 @@ void NodeP2P::handleMessage(cMessage *msg)
 		if (blockAvail != nullptr) {
 			Block b = blockAvail->getBlock();
 			unsigned short peerIdx = blockAvail->getArrivalGate()->getIndex();
-			// TODO: do something here now that peer has updates its availability
+			blocks[b].peerAvail[peerIdx] = blockAvail->getChunks();
+			// TODO: do something here now that peer has updated its availability
 			delete blockAvail;	// this is a disposable message
 			return;
 		}
