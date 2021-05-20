@@ -190,7 +190,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 						qLength++;
 						// important: locally mark that the peer has received the chunk
 						blocks[it.first].peerAvail[pidx][cidx] = true;
-						if (qLength >= 5000) {
+						if (qLength >= 50) {
 							return;
 						}
 					}
