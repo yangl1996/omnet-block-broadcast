@@ -173,9 +173,9 @@ void NodeP2P::handleMessage(cMessage *msg)
 		// next epoch kicks off, all blocks have been downloaded by all nodes
 		// also, we do not need to worry about requesting on others' behalf, because
 		// all nodes request all blocks for now (HB)
-		for (auto it: blocks) {
-			// we try to prioritize nodes with higher idx (larger out bw)
-			for (int pidx = npeers-1; pidx >= 0; pidx--) {
+		// we try to prioritize nodes with higher idx (larger out bw)
+		for (int pidx = npeers-1; pidx >= 0; pidx--) {
+			for (auto it: blocks) {
 				// see if this peer has any outstanding request that we can fulfill
 				ChunkMap mask = it.second.peerReq[pidx] &
 					(~it.second.peerAvail[pidx]) & 
@@ -185,6 +185,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 						BlockChunk *resp = new BlockChunk();
 						resp->setBlock(it.first);
 						resp->setChunkId(cidx);
+						resp->setByteLength(2000000 / NUM_CHUNKS);
 						send(resp, "peer$o", pidx);
 						qLength++;
 						if (qLength >= 50) {

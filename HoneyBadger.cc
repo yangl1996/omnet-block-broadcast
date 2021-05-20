@@ -105,9 +105,12 @@ void HoneyBadger::confirmReception(unsigned int epoch) {
 
 	// note that we want to only check if epoch==nextBlockSeq-1. otherwise we risk scheduling multiple nextMine events.
 	if (epoch == nextBlockSeq-1 && epochs.find(nextBlockSeq-1) != epochs.end() && epochs[nextBlockSeq-1] >= numNodes*numNodes) {
-		scheduleAt(simTime(), nextMine);
-		roundIntvStats.collect(simTime() - lastEpochFinish);
-		lastEpochFinish = simTime();
+		// TODO: we only run for one round
+		if (nextBlockSeq < 2) {
+			scheduleAt(simTime(), nextMine);
+			roundIntvStats.collect(simTime() - lastEpochFinish);
+			lastEpochFinish = simTime();
+		}
 	}
 }
 
