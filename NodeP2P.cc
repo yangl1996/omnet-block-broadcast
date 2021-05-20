@@ -115,8 +115,8 @@ void NodeP2P::handleMessage(cMessage *msg)
 	}
 	else {
 		// check message type
-		BlockAvailability *blockAvail = dynamic_cast<BlockAvailability*>(msg);
-		if (blockAvail != nullptr) {
+		if (dynamic_cast<BlockAvailability*>(msg)) {
+			BlockAvailability *blockAvail = dynamic_cast<BlockAvailability*>(msg);
 			Block b = blockAvail->getBlock();
 			unsigned short peerIdx = blockAvail->getArrivalGate()->getIndex();
 			blocks[b].peerAvail[peerIdx] = blockAvail->getChunks();
@@ -136,9 +136,8 @@ void NodeP2P::handleMessage(cMessage *msg)
 			delete blockAvail;	// this is a disposable message
 			return;
 		}
-
-		BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
-		if (blockChunk != nullptr) {
+		else if (dynamic_cast<BlockChunk*>(msg)) {
+			BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
 			Block b = blockChunk->getBlock();
 			if (blocks[b].downloaded[blockChunk->getChunkId()] == false) {
 				blocks[b].downloaded[blockChunk->getChunkId()] = 1;
@@ -155,18 +154,18 @@ void NodeP2P::handleMessage(cMessage *msg)
 			delete blockChunk;
 			return;
 		}
-
-		GetBlockChunks *getChunks = dynamic_cast<GetBlockChunks*>(msg);
-		if (getChunks != nullptr) {
+		else if (dynamic_cast<GetBlockChunks*>(msg)) {
+			GetBlockChunks *getChunks = dynamic_cast<GetBlockChunks*>(msg);
 			Block b = getChunks->getBlock();
 			unsigned short peerIdx = getChunks->getArrivalGate()->getIndex();
 			blocks[b].peerReq[peerIdx] |=  getChunks->getChunks();
 			delete getChunks;
 			return;
 		}
-
-		// otherwise just deliver it to the node
-		send(msg, toNode);
+		else {
+			// otherwise just deliver it to the node
+			send(msg, toNode);
+		}
 	}
 }
 
