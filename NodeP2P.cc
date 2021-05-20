@@ -134,7 +134,6 @@ void NodeP2P::handleMessage(cMessage *msg)
 				blocks[b].requested.set();
 			}
 			delete blockAvail;	// this is a disposable message
-			return;
 		}
 		else if (dynamic_cast<BlockChunk*>(msg)) {
 			BlockChunk *blockChunk= dynamic_cast<BlockChunk*>(msg);
@@ -152,7 +151,6 @@ void NodeP2P::handleMessage(cMessage *msg)
 				}
 			}
 			delete blockChunk;
-			return;
 		}
 		else if (dynamic_cast<GetBlockChunks*>(msg)) {
 			GetBlockChunks *getChunks = dynamic_cast<GetBlockChunks*>(msg);
@@ -160,11 +158,41 @@ void NodeP2P::handleMessage(cMessage *msg)
 			unsigned short peerIdx = getChunks->getArrivalGate()->getIndex();
 			blocks[b].peerReq[peerIdx] |=  getChunks->getChunks();
 			delete getChunks;
-			return;
 		}
 		else {
 			// otherwise just deliver it to the node
 			send(msg, toNode);
+			return;
+		}
+		// this branch will only be taken if the message is for p2p not for node
+		// try to fill the queue
+		unsigned int qLength = rateLimiter->outQueueLength();
+		int npeers = gateSize("peer");
+		// put more work into the queue
+		// we do not need to worry about ordering between blocks, because before the
+		// next epoch kicks off, all blocks have been downloaded by all nodes
+		// also, we do not need to worry about requesting on others' behalf, because
+		// all nodes request all blocks for now (HB)
+		for (auto it: blocks) {
+			// we try to prioritize nodes with higher idx (larger out bw)
+			for (int pidx = npeers-1; pidx >= 0; pidx--) {
+				// see if this peer has any outstanding request that we can fulfill
+				ChunkMap mask = it.second.peerReq[pidx] &
+					(~it.second.peerAvail[pidx]) & 
+					it.second.downloaded;
+				for (int cidx = 0; cidx < NUM_CHUNKS; cidx++) {
+					if (mask[cidx]) {
+						BlockChunk *resp = new BlockChunk();
+						resp->setBlock(it.first);
+						resp->setChunkId(cidx);
+						send(resp, "peer$o", pidx);
+						qLength++;
+						if (qLength >= 50) {
+							return;
+						}
+					}
+				}
+			}
 		}
 	}
 }
