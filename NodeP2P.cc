@@ -119,7 +119,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			BlockAvailability *blockAvail = dynamic_cast<BlockAvailability*>(msg);
 			Block b = blockAvail->getBlock();
 			unsigned short peerIdx = blockAvail->getArrivalGate()->getIndex();
-			blocks[b].peerAvail[peerIdx] = blockAvail->getChunks();
+			blocks[b].peerAvail[peerIdx] |= blockAvail->getChunks();
 			// TODO: for now we assume everyone wants the full block
 			// broadcast our request for the whole block if not done so
 			if (blocks[b].requested.count() == 0) {
@@ -156,7 +156,7 @@ void NodeP2P::handleMessage(cMessage *msg)
 			GetBlockChunks *getChunks = dynamic_cast<GetBlockChunks*>(msg);
 			Block b = getChunks->getBlock();
 			unsigned short peerIdx = getChunks->getArrivalGate()->getIndex();
-			blocks[b].peerReq[peerIdx] |=  getChunks->getChunks();
+			blocks[b].peerReq[peerIdx] |= getChunks->getChunks();
 			delete getChunks;
 		}
 		else {
@@ -188,7 +188,9 @@ void NodeP2P::handleMessage(cMessage *msg)
 						resp->setByteLength(2000000 / NUM_CHUNKS);
 						send(resp, "peer$o", pidx);
 						qLength++;
-						if (qLength >= 50) {
+						// important: locally mark that the peer has received the chunk
+						blocks[it.first].peerAvail[pidx][cidx] = true;
+						if (qLength >= 5000) {
 							return;
 						}
 					}
