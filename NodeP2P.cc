@@ -181,6 +181,9 @@ void NodeP2P::handleMessage(cMessage *msg)
 					(~it.second.peerAvail[pidx]) & 
 					it.second.downloaded;
 				for (int cidx = 0; cidx < NUM_CHUNKS; cidx++) {
+					if (qLength >= 10) {
+						return;
+					}
 					if (mask[cidx]) {
 						BlockChunk *resp = new BlockChunk();
 						resp->setBlock(it.first);
@@ -190,9 +193,6 @@ void NodeP2P::handleMessage(cMessage *msg)
 						qLength++;
 						// important: locally mark that the peer has received the chunk
 						blocks[it.first].peerAvail[pidx][cidx] = true;
-						if (qLength >= 50) {
-							return;
-						}
 					}
 				}
 			}
